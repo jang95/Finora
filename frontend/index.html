@@ -5,6 +5,14 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Finora</title>
+    <script>
+      // OS 다크모드 설정에 맞춰 <html class="dark">를 붙인다. 화면이 그려지기 전에 실행해 깜빡임을 막는다.
+      const darkQuery = matchMedia('(prefers-color-scheme: dark)')
+      const applyTheme = () =>
+        document.documentElement.classList.toggle('dark', darkQuery.matches)
+      applyTheme()
+      darkQuery.addEventListener('change', applyTheme)
+    </script>
   </head>
   <body>
     <div id="root"></div>

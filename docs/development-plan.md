@@ -69,7 +69,8 @@ Finora는 가족·지인 몇 명(10명 이하)이 사용할 수 있는 **개인 
 | Frontend | React 19 + TypeScript | 완료 |
 | Frontend Build | Vite | 완료 |
 | Code Lint | ESLint | 완료 |
-| 라우팅 | React Router | Phase 1 |
+| 라우팅 | React Router | 완료 |
+| 스타일 | Tailwind CSS v4 + shadcn/ui (Radix, lucide 아이콘), 글꼴 Pretendard | 완료 |
 | 서버 데이터 관리 | TanStack Query | Phase 5 |
 | 차트 | Recharts | Phase 10 |
 | Backend | ASP.NET Core Web API (.NET 10 LTS, C#) | Phase 3 |
@@ -96,6 +97,7 @@ Finora는 가족·지인 몇 명(10명 이하)이 사용할 수 있는 **개인 
 | D5 | Phase 2의 임시 데이터는 **services 계층 안에** 둔다 | 화면 코드는 `transactionService.getList()`만 호출한다. Phase 5에서 service 내부만 실제 API 호출로 바꾸면 화면은 수정할 필요가 없다. |
 | D6 | 인증을 실제 데이터 저장보다 **먼저** 만든다 | 사용자 분리가 없는 상태로 저장 기능을 만들면, 나중에 모든 API와 테이블을 다시 고쳐야 한다. |
 | D7 | GitHub 저장소는 **Public** (`jang95/Finora`) | 이직·포트폴리오 제출용. 대신 비밀 정보·실제 금융 데이터·운영 서버 정보는 저장소에 절대 넣지 않는다 (9장 운영 원칙). |
+| D8 | 스타일은 CSS Modules 대신 **Tailwind CSS v4 + shadcn/ui** | 사용자의 Tailwind 경험, 채용 시장 수요, 표·폼·모달·차트(Recharts 기반) 컴포넌트를 바로 쓸 수 있음. 화면이 2개뿐인 Phase 1 직후에 전환해 비용이 최소였다. |
 
 ---
 
@@ -186,7 +188,8 @@ frontend/src/
 ├─ assets/                   이미지, 아이콘
 │
 ├─ components/               여러 화면에서 재사용하는 UI
-│  ├─ common/                Button, Input, Modal, MoneyText ...
+│  ├─ ui/                    shadcn/ui가 생성한 기본 컴포넌트 (Button, Input, Dialog ...)
+│  ├─ common/                Finora 공통 컴포넌트 (MoneyText ...)
 │  ├─ transaction/
 │  ├─ asset/
 │  └─ investment/
@@ -222,6 +225,7 @@ frontend/src/
 │  └─ investment.ts
 │
 ├─ hooks/                    재사용 React 로직
+├─ lib/                      cn() 등 shadcn 유틸
 ├─ utils/                    포맷 함수 (금액, 날짜) 등
 │
 ├─ router.tsx                라우트 정의 (주소 ↔ 화면 연결표)
