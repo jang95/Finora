@@ -203,7 +203,8 @@ frontend/src/
 │  ├─ AssetsPage.tsx
 │  ├─ InvestmentsPage.tsx
 │  ├─ StatisticsPage.tsx
-│  └─ SettingsPage.tsx
+│  ├─ SettingsPage.tsx
+│  └─ NotFoundPage.tsx       잘못된 주소
 │
 ├─ services/                 Backend 통신 (Phase 2에서는 임시 데이터 반환)
 │  ├─ api.ts                 fetch 공통 처리 (에러, 401 처리)
@@ -223,9 +224,8 @@ frontend/src/
 ├─ hooks/                    재사용 React 로직
 ├─ utils/                    포맷 함수 (금액, 날짜) 등
 │
-├─ router.tsx                라우트 정의
-├─ App.tsx
-├─ main.tsx
+├─ router.tsx                라우트 정의 (주소 ↔ 화면 연결표)
+├─ main.tsx                  시작점. RouterProvider 렌더링
 └─ index.css
 ```
 
