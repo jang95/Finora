@@ -1,7 +1,7 @@
 # Finora 개인 금융관리 프로그램 개발 계획서
 
 > 기준일: 2026-10-07  
-> 현재 상태: Phase 0 완료 (저장소 정리). 다음은 Phase 1
+> 현재 상태: Phase 1 완료 (라우팅 + 반응형 레이아웃). 다음은 Phase 2
 
 ### 변경 이력
 
@@ -430,7 +430,7 @@ UserId = A인 데이터만 조회/수정/삭제
 
 ---
 
-### Phase 1 — Frontend 기본 구조 ← **다음 작업**
+### Phase 1 — Frontend 기본 구조 ✅ 2026-10-07 완료
 
 목표:
 - React 기본 구조 이해 (컴포넌트, props, state)
@@ -448,7 +448,7 @@ UserId = A인 데이터만 조회/수정/삭제
 
 ---
 
-### Phase 2 — Finora 화면 제작 (임시 데이터)
+### Phase 2 — Finora 화면 제작 (임시 데이터) ← **다음 작업**
 
 Backend 없이 화면부터 만든다. 임시 데이터는 `mocks/`에 두고 **services를 통해서만** 사용한다. (결정 D5)
 
@@ -698,8 +698,8 @@ AI 분석 (Backend에서 호출)
 [완료] 개발 환경    Node.js, npm, Git, VS Code
 [완료] Vite + React + TypeScript + ESLint 프로젝트 생성 및 실행
 [완료] Phase 0   저장소 정리 (Git: jang95 계정, local 설정)
-[진행] Phase 1   Frontend 기본 구조
-[ ]    Phase 2   화면 제작 (임시 데이터)
+[완료] Phase 1   Frontend 기본 구조 (React Router, PC 사이드 메뉴 / 모바일 하단 탭)
+[진행] Phase 2   화면 제작 (임시 데이터)
 [ ]    Phase 3   Backend + Database 기반
 [ ]    Phase 4   회원가입 / 로그인 / 사용자 분리
 [ ]    Phase 5   가계부 완성
