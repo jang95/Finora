@@ -1,7 +1,7 @@
 # Finora 개인 금융관리 프로그램 개발 계획서
 
 > 기준일: 2026-10-07  
-> 현재 상태: React + TypeScript + Vite 프로젝트 생성 및 실행 완료 (Phase 0 진행 전)
+> 현재 상태: Phase 0 완료 (저장소 정리). 다음은 Phase 1
 
 ### 변경 이력
 
@@ -413,7 +413,7 @@ UserId = A인 데이터만 조회/수정/삭제
 
 각 단계는 **완료 기준**을 모두 만족해야 다음으로 넘어간다.
 
-### Phase 0 — 저장소 정리 ← **다음 작업**
+### Phase 0 — 저장소 정리 ✅ 2026-10-07 완료
 
 작업:
 1. `git init`, 첫 커밋
@@ -427,7 +427,7 @@ UserId = A인 데이터만 조회/수정/삭제
 
 ---
 
-### Phase 1 — Frontend 기본 구조
+### Phase 1 — Frontend 기본 구조 ← **다음 작업**
 
 목표:
 - React 기본 구조 이해 (컴포넌트, props, state)
@@ -694,8 +694,8 @@ AI 분석 (Backend에서 호출)
 ```text
 [완료] 개발 환경    Node.js, npm, Git, VS Code
 [완료] Vite + React + TypeScript + ESLint 프로젝트 생성 및 실행
-[진행] Phase 0   저장소 정리
-[ ]    Phase 1   Frontend 기본 구조
+[완료] Phase 0   저장소 정리 (Git: jang95 계정, local 설정)
+[진행] Phase 1   Frontend 기본 구조
 [ ]    Phase 2   화면 제작 (임시 데이터)
 [ ]    Phase 3   Backend + Database 기반
 [ ]    Phase 4   회원가입 / 로그인 / 사용자 분리

@@ -13,9 +13,14 @@
 
 ## 구조
 
-- 현재: Vite 프로젝트가 저장소 루트에 있음 (Phase 0에서 `frontend/`로 이동 예정)
-- 목표: `frontend/` (React+TS+Vite), `backend/` (ASP.NET Core, .NET 10), `docs/`
-- Frontend 명령어: `npm run dev` / `npm run lint` / `npm run build`
+- `frontend/` (React+TS+Vite), `backend/` (ASP.NET Core, .NET 10 — Phase 3에서 생성), `docs/`
+- Frontend 명령어 (`frontend/`에서): `npm run dev` / `npm run lint` / `npm run build`
+
+## Git
+
+- 이 PC에는 GitHub 계정이 2개 있다. 이 저장소는 **jang95** 계정을 쓴다 (local config에 user.name/email, credential.username 설정됨).
+- 원격 저장소를 추가할 때는 `https://jang95@github.com/...` 형식으로 계정을 명시한다.
+- global git 설정은 건드리지 않는다.
 
 ## 반드시 지킬 규칙
 
