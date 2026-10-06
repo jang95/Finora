@@ -27,7 +27,7 @@
 - **UserId는 항상 Backend의 인증 정보에서 가져온다.** 요청 Body/URL의 UserId를 신뢰하지 않는다. 모든 조회/수정/삭제에서 소유권을 확인한다.
 - **금액 계산은 Backend `decimal`** (DB `numeric`). float/double 금지. Frontend는 표시만 한다.
 - 화면(pages/components)에서 `fetch`를 직접 호출하지 않는다. `services/`를 거친다.
-- 비밀번호·접속 문자열·API Key를 코드나 Git에 넣지 않는다.
+- **저장소가 Public이다(포트폴리오용).** 비밀번호·접속 문자열·API Key·실제 금융 데이터·서버 IP·초대코드를 코드, 문서, 커밋에 넣지 않는다. 테스트/예시 데이터는 가짜로 만든다. 커밋 전에 이런 값이 섞이지 않았는지 확인한다.
 
 ## 문서 관리
 
