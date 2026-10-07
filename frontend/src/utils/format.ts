@@ -22,6 +22,21 @@ export function formatMoney(amount: number, signed = false): string {
   return `${formatter.format(amount)}원`
 }
 
+// weekday: 'short' → 한국어 요일 한 글자 (월, 화 ...)
+const dateFormatter = new Intl.DateTimeFormat('ko-KR', {
+  month: 'long',
+  day: 'numeric',
+  weekday: 'short',
+})
+
+// '2026-10-07' → "10월 7일 (수)"
+// new Date('2026-10-07')은 UTC 자정으로 해석돼서 시간대에 따라 날짜가 하루 밀릴 수 있다.
+// 그래서 숫자로 나눠서 로컬 날짜로 만든다. (month는 0부터 시작해서 -1)
+export function formatDate(date: string): string {
+  const [year, month, day] = date.split('-').map(Number)
+  return dateFormatter.format(new Date(year, month - 1, day))
+}
+
 // 3.25 → "+3.25%"
 export function formatPercent(value: number): string {
   return `${percentFormatter.format(value)}%`
