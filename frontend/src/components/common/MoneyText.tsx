@@ -3,7 +3,7 @@ import { formatMoney } from '@/utils/format'
 
 // tone: 금액 색상
 // - 'income' / 'expense': 항상 수입(초록)/지출(빨강) 색
-// - 'profit': 손익처럼 부호에 따라 양수는 income 색, 음수는 expense 색 + 부호(+/-) 표시
+// - 'profit': 투자 손익. 한국식으로 양수는 gain(빨강), 음수는 loss(파랑) 색 + 부호(+/-) 표시 (결정 D9)
 // - 지정하지 않으면 기본 글자색
 type MoneyTone = 'income' | 'expense' | 'profit'
 
@@ -31,8 +31,8 @@ function MoneyText({ amount, tone, className }: MoneyTextProps) {
         'tabular-nums',
         tone === 'income' && 'text-income',
         tone === 'expense' && 'text-expense',
-        isProfit && amount > 0 && 'text-income',
-        isProfit && amount < 0 && 'text-expense',
+        isProfit && amount > 0 && 'text-gain',
+        isProfit && amount < 0 && 'text-loss',
         className,
       )}
     >

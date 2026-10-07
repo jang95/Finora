@@ -7,9 +7,12 @@
 @custom-variant dark (&:is(.dark *));
 
 /* Finora 전용 색상: text-income, text-expense 등으로 사용 */
+/* gain/loss: 투자 손익 (한국식: 상승 빨강, 하락 파랑). 가계부 수입/지출 색과 의미가 달라 따로 둔다 */
 @theme inline {
     --color-income: var(--income);
     --color-expense: var(--expense);
+    --color-gain: var(--gain);
+    --color-loss: var(--loss);
 }
 
 @theme inline {
@@ -90,11 +93,15 @@
     --sidebar-ring: oklch(0.708 0 0);
     --income: oklch(0.55 0.15 150);
     --expense: oklch(0.577 0.245 27.325);
+    --gain: oklch(0.577 0.245 27.325);
+    --loss: oklch(0.546 0.245 262.881);
 }
 
 .dark {
     --income: oklch(0.72 0.17 150);
     --expense: oklch(0.704 0.191 22.216);
+    --gain: oklch(0.704 0.191 22.216);
+    --loss: oklch(0.707 0.165 254.624);
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.205 0 0);
