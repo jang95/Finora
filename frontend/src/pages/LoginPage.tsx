@@ -1,14 +1,22 @@
-import type { FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 function LoginPage() {
+  // [제어 컴포넌트] 입력칸의 값을 React state가 쥐고 있는 방식.
+  //   value={email}            → 입력칸에 보이는 값은 항상 state 값
+  //   onChange={... setEmail}  → 키를 누를 때마다 state를 바꾸고, 바뀐 state가 다시 입력칸에 표시된다
+  // 이렇게 하면 제출할 때 state를 바로 쓸 수 있고, 입력 중 검사·초기화도 state만 바꾸면 된다.
+  // (value만 주고 onChange를 빼면 입력해도 글자가 바뀌지 않는다)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+
   // HTML form은 제출하면 페이지를 새로고침한다. React에서는 preventDefault()로 이를 막고 직접 처리한다.
-  // 실제 로그인은 Phase 4에서 services/를 통해 연결한다.
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    // TODO(Phase 4): authService.login({ email, password }) 호출 후 대시보드로 이동
   }
 
   return (
@@ -23,11 +31,21 @@ function LoginPage() {
           autoComplete="email"
           placeholder="name@example.com"
           required
+          value={email}
+          // event.target: 이벤트가 일어난 입력칸. .value가 현재 입력된 글자다.
+          onChange={(event) => setEmail(event.target.value)}
         />
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">비밀번호</Label>
-        <Input id="password" type="password" autoComplete="current-password" required />
+        <Input
+          id="password"
+          type="password"
+          autoComplete="current-password"
+          required
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+        />
       </div>
 
       <Button type="submit" className="mt-2 w-full">
