@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import MoneyText from '@/components/common/MoneyText'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { getDashboardSummary } from '@/services/dashboardService'
 import type { DashboardSummary } from '@/types/dashboard'
-import { formatPercent } from '@/utils/format'
 
 function DashboardPage() {
   // [useState] 화면이 기억하는 값(state).
@@ -45,14 +44,12 @@ function DashboardPage() {
     return <p className="text-muted-foreground">불러오는 중...</p>
   }
 
-  const { investment } = summary
-
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">대시보드</h1>
 
-      {/* 모바일 1열 → sm(640px) 2열 → xl(1280px) 4열 */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* 모바일 1열 → sm(640px) 3열 */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader>
             <CardDescription>총자산</CardDescription>
@@ -80,18 +77,6 @@ function DashboardPage() {
           </CardHeader>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardDescription>투자 평가금액</CardDescription>
-            <CardTitle className="text-2xl font-bold">
-              <MoneyText amount={investment.totalValue} />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex gap-2 text-sm">
-            <MoneyText amount={investment.profit} tone="profit" />
-            <span className="text-muted-foreground">({formatPercent(investment.profitRate)})</span>
-          </CardContent>
-        </Card>
       </div>
     </div>
   )
