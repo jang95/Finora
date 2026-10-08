@@ -1,10 +1,15 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import MoneyText from '@/components/common/MoneyText'
+import TransactionFormDialog from '@/components/transaction/TransactionFormDialog'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { getTransactions } from '@/services/transactionService'
-import type { Transaction } from '@/types/transaction'
+import { getAccounts } from '@/services/assetService'
+import { getCategories } from '@/services/categoryService'
+import { addTransaction, getTransactions } from '@/services/transactionService'
+import type { Account } from '@/types/asset'
+import type { Category } from '@/types/category'
+import type { NewTransaction, Transaction } from '@/types/transaction'
 import { formatDate } from '@/utils/format'
 
 // 연·월을 한 묶음으로 다룬다. 따로 state 2개로 두면 12월 → 1월처럼 둘이 같이 바뀔 때 실수하기 쉽다.
@@ -31,10 +36,34 @@ function TransactionsPage() {
   const [{ year, month }, setYearMonth] = useState<YearMonth>(getThisMonth)
 
   const [transactions, setTransactions] = useState<Transaction[] | null>(null)
+  // 목록을 다시 불러오고 싶을 때 1씩 올린다. 아래 useEffect가 이 값이 바뀐 것을 보고 다시 실행된다.
+  const [reloadKey, setReloadKey] = useState(0)
+
+  const [categories, setCategories] = useState<Category[]>([])
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [isFormOpen, setIsFormOpen] = useState(false)
 
   // 이전 값(prev)을 받아 새 값을 만드는 형태. 버튼을 빠르게 여러 번 눌러도 항상 최신 값 기준으로 계산된다.
   function moveMonth(offset: number) {
     setYearMonth((prev) => addMonths(prev, offset))
+  }
+
+  // 등록 폼의 선택 목록. 월이 바뀌어도 그대로이므로 처음 한 번만 불러온다 (의존성 배열 [])
+  useEffect(() => {
+    // Promise.all: 두 요청을 동시에 보내고 둘 다 끝나면 결과를 배열로 받는다
+    Promise.all([getCategories(), getAccounts()]).then(([categoryList, accountList]) => {
+      setCategories(categoryList)
+      setAccounts(accountList)
+    })
+  }, [])
+
+  async function handleAdd(input: NewTransaction) {
+    const created = await addTransaction(input)
+    setIsFormOpen(false)
+    // 등록한 거래가 있는 달로 이동하고 목록을 다시 불러온다 (지금 보는 달이면 reloadKey로 새로고침)
+    const [createdYear, createdMonth] = created.date.split('-').map(Number)
+    setYearMonth({ year: createdYear, month: createdMonth })
+    setReloadKey((prev) => prev + 1)
   }
 
   useEffect(() => {
@@ -49,7 +78,7 @@ function TransactionsPage() {
     }
     // year, month가 바뀌면(월 이동) 다시 불러온다.
     // 이때 이전 effect의 cleanup이 먼저 실행돼 ignore = true가 되므로, 늦게 온 이전 달 응답은 무시된다.
-  }, [year, month])
+  }, [year, month, reloadKey])
 
   return (
     <div className="flex flex-col gap-6">
@@ -68,6 +97,12 @@ function TransactionsPage() {
           </Button>
         </div>
       </div>
+
+      {/* self-end: 이 요소만 오른쪽 끝에 붙인다 */}
+      <Button className="self-end" onClick={() => setIsFormOpen(true)}>
+        <Plus />
+        거래 등록
+      </Button>
 
       {transactions === null ? (
         <p className="text-muted-foreground">불러오는 중...</p>
@@ -93,6 +128,14 @@ function TransactionsPage() {
           </ul>
         </Card>
       )}
+
+      <TransactionFormDialog
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        categories={categories}
+        accounts={accounts}
+        onSubmit={handleAdd}
+      />
     </div>
   )
 }

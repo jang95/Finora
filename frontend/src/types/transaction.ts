@@ -17,3 +17,7 @@ export interface Transaction {
   amount: number // 항상 양수. 수입/지출 구분은 type으로 한다.
   memo?: string
 }
+
+// 등록할 때 보내는 값. id와 이름(accountName 등)은 저장하는 쪽(지금은 service, 나중엔 Backend)이 채운다.
+// Omit<T, 키들>: T에서 해당 속성만 뺀 타입을 만든다. 같은 속성을 두 번 적지 않아도 된다.
+export type NewTransaction = Omit<Transaction, 'id' | 'accountName' | 'toAccountName' | 'categoryName'>
