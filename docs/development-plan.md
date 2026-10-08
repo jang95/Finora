@@ -725,7 +725,7 @@ AI 분석 (Backend에서 호출)
 [완료] Vite + React + TypeScript + ESLint 프로젝트 생성 및 실행
 [완료] Phase 0   저장소 정리 (Git: jang95 계정, local 설정)
 [완료] Phase 1   Frontend 기본 구조 (React Router, PC 사이드 메뉴 / 모바일 하단 탭)
-[진행] Phase 2   화면 제작 (임시 데이터) — 로그인/가입, 대시보드 요약, 가계부 목록·월 이동·등록 완료
+[진행] Phase 2   화면 제작 (임시 데이터) — 로그인/가입, 대시보드, 가계부(등록·수정·삭제·이체), 자산, 투자 "준비 중" 완료. 남음: 통계, 설정
 [ ]    Phase 3   Backend + Database 기반
 [ ]    Phase 4   회원가입 / 로그인 / 사용자 분리
 [ ]    Phase 5   가계부 + 계좌 기본 완성
