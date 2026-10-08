@@ -1,4 +1,15 @@
 import { useState, type FormEvent } from 'react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -13,28 +24,33 @@ import { Label } from '@/components/ui/label'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import type { Account } from '@/types/asset'
 import type { Category, CategoryType } from '@/types/category'
-import type { NewTransaction } from '@/types/transaction'
+import type { NewTransaction, Transaction } from '@/types/transaction'
 
 interface TransactionFormDialogProps {
   // 열림/닫힘은 부모(페이지)가 state로 가진다. 닫기 버튼·바깥 클릭·Esc를 누르면 onOpenChange(false)가 호출된다.
   open: boolean
   onOpenChange: (open: boolean) => void
+  // 수정할 거래. null이면 새로 등록한다. (등록/수정 폼이 거의 같아서 컴포넌트 하나로 처리한다)
+  transaction: Transaction | null
   categories: Category[]
   accounts: Account[]
-  // 저장 처리는 부모가 한다. 컴포넌트는 service를 직접 부르지 않고 입력값만 넘긴다 (계획서 6장 폴더 규칙).
+  // 저장·삭제 처리는 부모가 한다. 컴포넌트는 service를 직접 부르지 않고 입력값만 넘긴다 (계획서 6장 폴더 규칙).
   onSubmit: (input: NewTransaction) => Promise<void>
+  onDelete: () => Promise<void>
 }
 
 function TransactionFormDialog({ open, onOpenChange, ...formProps }: TransactionFormDialogProps) {
+  const isEdit = formProps.transaction !== null
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>거래 등록</DialogTitle>
+          <DialogTitle>{isEdit ? '거래 수정' : '거래 등록'}</DialogTitle>
           <DialogDescription>수입 또는 지출 내역을 입력하세요.</DialogDescription>
         </DialogHeader>
         {/* DialogContent는 닫히면 화면에서 사라진다(unmount). 그래서 폼 state를 아래 컴포넌트에 두면
-            다시 열 때마다 새로 만들어져 입력칸이 자동으로 비워진다. */}
+            다시 열 때마다 새로 만들어져, 등록이면 빈 칸으로 / 수정이면 그 거래 값으로 다시 채워진다. */}
         <TransactionForm {...formProps} onCancel={() => onOpenChange(false)} />
       </DialogContent>
     </Dialog>
@@ -42,20 +58,25 @@ function TransactionFormDialog({ open, onOpenChange, ...formProps }: Transaction
 }
 
 interface TransactionFormProps {
+  transaction: Transaction | null
   categories: Category[]
   accounts: Account[]
   onSubmit: (input: NewTransaction) => Promise<void>
+  onDelete: () => Promise<void>
   onCancel: () => void
 }
 
-function TransactionForm({ categories, accounts, onSubmit, onCancel }: TransactionFormProps) {
-  const [type, setType] = useState<CategoryType>('Expense')
-  const [date, setDate] = useState(getToday)
+function TransactionForm({ transaction, categories, accounts, onSubmit, onDelete, onCancel }: TransactionFormProps) {
+  // useState의 초기값은 처음 만들어질 때 한 번만 쓰인다. 수정이면 기존 거래 값으로 시작한다.
+  // (이체는 아직 이 폼에서 다루지 않으므로 수입이 아니면 지출로 본다. 이체는 다음 단계에서 추가)
+  const [type, setType] = useState<CategoryType>(transaction?.type === 'Income' ? 'Income' : 'Expense')
+  // () => ...: 함수로 넘기면 처음 한 번만 계산한다 (getToday()를 그릴 때마다 부르지 않게)
+  const [date, setDate] = useState(() => transaction?.date ?? getToday())
   // select·input의 값은 항상 문자열이다. 그래서 id도 문자열로 들고 있다가 저장할 때 숫자로 바꾼다. ''는 "선택 안 함"
-  const [categoryId, setCategoryId] = useState('')
-  const [accountId, setAccountId] = useState('')
-  const [amount, setAmount] = useState('')
-  const [memo, setMemo] = useState('')
+  const [categoryId, setCategoryId] = useState(transaction?.categoryId?.toString() ?? '')
+  const [accountId, setAccountId] = useState(transaction?.accountId.toString() ?? '')
+  const [amount, setAmount] = useState(transaction?.amount.toString() ?? '')
+  const [memo, setMemo] = useState(transaction?.memo ?? '')
   const [isSaving, setIsSaving] = useState(false)
 
   // 지금 고른 종류(수입/지출)의 카테고리만 보여준다 (파생 값)
@@ -83,6 +104,15 @@ function TransactionForm({ categories, accounts, onSubmit, onCancel }: Transacti
       })
     } finally {
       // finally: 성공·실패와 상관없이 마지막에 실행된다 (C#의 finally와 같다)
+      setIsSaving(false)
+    }
+  }
+
+  async function handleDelete() {
+    setIsSaving(true)
+    try {
+      await onDelete()
+    } finally {
       setIsSaving(false)
     }
   }
@@ -183,6 +213,29 @@ function TransactionForm({ categories, accounts, onSubmit, onCancel }: Transacti
       </div>
 
       <DialogFooter>
+        {/* 수정일 때만 삭제 버튼. sm:mr-auto: PC에서 왼쪽 끝으로 밀어 저장 버튼과 떨어뜨린다 (실수로 누르지 않게) */}
+        {transaction !== null && (
+          // AlertDialog: 되돌릴 수 없는 작업 전에 한 번 더 묻는 확인 창. Trigger 버튼을 누르면 열린다.
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button type="button" variant="destructive" className="sm:mr-auto" disabled={isSaving}>
+                삭제
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>이 거래를 삭제할까요?</AlertDialogTitle>
+                <AlertDialogDescription>삭제한 거래는 되돌릴 수 없습니다.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>취소</AlertDialogCancel>
+                <AlertDialogAction variant="destructive" onClick={handleDelete}>
+                  삭제
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
         <Button type="button" variant="outline" onClick={onCancel}>
           취소
         </Button>

@@ -20,8 +20,36 @@ export async function getTransactions(year: number, month: number): Promise<Tran
 export async function addTransaction(input: NewTransaction): Promise<Transaction> {
   // Math.max(...배열): 배열을 펼쳐서 가장 큰 값. DB의 자동 증가 id 흉내
   const id = Math.max(0, ...transactionsMock.map((t) => t.id)) + 1
+  const created = toTransaction(id, input)
+  transactionsMock.push(created)
+  return created
+}
 
-  const created: Transaction = {
+// 거래 수정. Backend가 생기면 PUT /api/transactions/{id} 호출로 바꾼다.
+// (Backend는 이 거래가 로그인한 사용자 것인지 확인한 뒤 수정한다)
+export async function updateTransaction(id: number, input: NewTransaction): Promise<Transaction> {
+  const index = transactionsMock.findIndex((t) => t.id === id)
+  // findIndex는 못 찾으면 -1. 실제 API라면 404 응답에 해당한다
+  if (index === -1) throw new Error('거래를 찾을 수 없습니다.')
+
+  const updated = toTransaction(id, input)
+  // 기존 객체의 속성을 하나씩 바꾸지 않고 새 객체로 통째로 교체한다.
+  // 수정 전에 없던 속성(예: memo를 지운 경우)이 이전 값으로 남는 실수를 막는다.
+  transactionsMock[index] = updated
+  return updated
+}
+
+// 거래 삭제. Backend가 생기면 DELETE /api/transactions/{id} 호출로 바꾼다.
+export async function deleteTransaction(id: number): Promise<void> {
+  const index = transactionsMock.findIndex((t) => t.id === id)
+  if (index === -1) throw new Error('거래를 찾을 수 없습니다.')
+  // splice(위치, 개수): 배열에서 해당 위치의 항목을 지운다
+  transactionsMock.splice(index, 1)
+}
+
+// 입력값 + id → 목록에 표시할 거래. 이름(accountName 등)을 채우는 일은 나중에 Backend가 조인으로 한다.
+function toTransaction(id: number, input: NewTransaction): Transaction {
+  return {
     // ...input: input의 속성을 그대로 복사해 넣는다 (스프레드 문법)
     ...input,
     id,
@@ -29,9 +57,6 @@ export async function addTransaction(input: NewTransaction): Promise<Transaction
     toAccountName: input.toAccountId === undefined ? undefined : findAccountName(input.toAccountId),
     categoryName: categoriesMock.find((c) => c.id === input.categoryId)?.name,
   }
-
-  transactionsMock.push(created)
-  return created
 }
 
 // ?.: 앞의 값이 undefined면 에러 없이 undefined를 돌려준다. ??: 앞이 undefined/null이면 뒤의 값을 쓴다.

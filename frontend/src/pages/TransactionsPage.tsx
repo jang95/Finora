@@ -4,9 +4,15 @@ import MoneyText from '@/components/common/MoneyText'
 import TransactionFormDialog from '@/components/transaction/TransactionFormDialog'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 import { getAccounts } from '@/services/assetService'
 import { getCategories } from '@/services/categoryService'
-import { addTransaction, getTransactions } from '@/services/transactionService'
+import {
+  addTransaction,
+  deleteTransaction,
+  getTransactions,
+  updateTransaction,
+} from '@/services/transactionService'
 import type { Account } from '@/types/asset'
 import type { Category } from '@/types/category'
 import type { NewTransaction, Transaction } from '@/types/transaction'
@@ -42,6 +48,9 @@ function TransactionsPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
+  // 팝업에서 수정 중인 거래. null이면 새로 등록.
+  // 닫을 때 이 값을 null로 되돌리지 않는다. 닫히는 애니메이션 동안 제목이 "거래 등록"으로 바뀌어 보이기 때문.
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
 
   // 이전 값(prev)을 받아 새 값을 만드는 형태. 버튼을 빠르게 여러 번 눌러도 항상 최신 값 기준으로 계산된다.
   function moveMonth(offset: number) {
@@ -57,12 +66,33 @@ function TransactionsPage() {
     })
   }, [])
 
-  async function handleAdd(input: NewTransaction) {
-    const created = await addTransaction(input)
+  function openAddForm() {
+    setEditingTransaction(null)
+    setIsFormOpen(true)
+  }
+
+  function openEditForm(transaction: Transaction) {
+    setEditingTransaction(transaction)
+    setIsFormOpen(true)
+  }
+
+  async function handleSubmit(input: NewTransaction) {
+    const saved =
+      editingTransaction === null
+        ? await addTransaction(input)
+        : await updateTransaction(editingTransaction.id, input)
     setIsFormOpen(false)
-    // 등록한 거래가 있는 달로 이동하고 목록을 다시 불러온다 (지금 보는 달이면 reloadKey로 새로고침)
-    const [createdYear, createdMonth] = created.date.split('-').map(Number)
-    setYearMonth({ year: createdYear, month: createdMonth })
+    // 저장한 거래가 있는 달로 이동하고 목록을 다시 불러온다 (날짜를 다른 달로 고친 경우도 포함)
+    const [savedYear, savedMonth] = saved.date.split('-').map(Number)
+    setYearMonth({ year: savedYear, month: savedMonth })
+    setReloadKey((prev) => prev + 1)
+  }
+
+  async function handleDelete() {
+    // 삭제 버튼은 수정 중일 때만 보이므로 여기서 null일 일은 없지만, TypeScript에게 알려주기 위해 확인한다
+    if (editingTransaction === null) return
+    await deleteTransaction(editingTransaction.id)
+    setIsFormOpen(false)
     setReloadKey((prev) => prev + 1)
   }
 
@@ -99,7 +129,7 @@ function TransactionsPage() {
       </div>
 
       {/* self-end: 이 요소만 오른쪽 끝에 붙인다 */}
-      <Button className="self-end" onClick={() => setIsFormOpen(true)}>
+      <Button className="self-end" onClick={openAddForm}>
         <Plus />
         거래 등록
       </Button>
@@ -122,7 +152,11 @@ function TransactionsPage() {
                     {formatDate(t.date)}
                   </div>
                 )}
-                <TransactionRow transaction={t} />
+                {/* 이체는 아직 폼에서 다루지 않으므로 누를 수 없게 한다 (이체 등록 단계에서 추가) */}
+                <TransactionRow
+                  transaction={t}
+                  onClick={t.type === 'Transfer' ? undefined : () => openEditForm(t)}
+                />
               </li>
             ))}
           </ul>
@@ -132,20 +166,24 @@ function TransactionsPage() {
       <TransactionFormDialog
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
+        transaction={editingTransaction}
         categories={categories}
         accounts={accounts}
-        onSubmit={handleAdd}
+        onSubmit={handleSubmit}
+        onDelete={handleDelete}
       />
     </div>
   )
 }
 
 // 거래 한 줄. 이 화면에서만 쓰므로 같은 파일에 둔다. (다른 화면에서도 쓰게 되면 components/transaction/으로 옮긴다)
-function TransactionRow({ transaction: t }: { transaction: Transaction }) {
+// onClick이 있으면 눌러서 수정할 수 있는 버튼으로 그린다.
+function TransactionRow({ transaction: t, onClick }: { transaction: Transaction; onClick?: () => void }) {
   const isTransfer = t.type === 'Transfer'
+  const className = 'flex w-full items-center justify-between gap-4 px-4 py-3 text-left'
 
-  return (
-    <div className="flex items-center justify-between gap-4 px-4 py-3">
+  const content = (
+    <>
       <div className="min-w-0">
         <p className="font-medium">{isTransfer ? '이체' : t.categoryName}</p>
         {/* truncate: 너무 길면 한 줄에서 ...으로 자른다 (모바일 대비) */}
@@ -159,8 +197,18 @@ function TransactionRow({ transaction: t }: { transaction: Transaction }) {
         tone={t.type === 'Income' ? 'income' : t.type === 'Expense' ? 'expense' : undefined}
         className="shrink-0 font-semibold"
       />
-    </div>
+    </>
   )
+
+  // 누를 수 있는 것은 div가 아니라 button으로 만든다. 그래야 키보드(Tab, Enter)로도 선택되고 화면낭독기가 "버튼"이라고 읽는다.
+  if (onClick) {
+    return (
+      <button type="button" className={cn(className, 'hover:bg-muted/50')} onClick={onClick}>
+        {content}
+      </button>
+    )
+  }
+  return <div className={className}>{content}</div>
 }
 
 export default TransactionsPage
