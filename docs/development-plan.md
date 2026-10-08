@@ -1,12 +1,13 @@
 # Finora 개인 금융관리 프로그램 개발 계획서
 
-> 기준일: 2026-10-07  
-> 현재 상태: Phase 1 완료 (라우팅 + 반응형 레이아웃). 다음은 Phase 2
+> 기준일: 2026-10-08  
+> 현재 상태: Phase 2 진행 중 (화면 제작, 임시 데이터)
 
 ### 변경 이력
 
 | 날짜 | 내용 |
 |---|---|
+| 2026-10-08 | v3 — 투자(주식)를 첫 배포 이후로 미룸. 가계부 + 계좌 기본 + 대시보드/통계/설정을 먼저 완성하고 첫 배포 (결정 D10) |
 | 2026-10-07 | v2 — 저장소 구조 확정(monorepo), 인증 방식 확정, 인증을 실제 데이터 저장보다 앞으로 이동, Backend+DB 단계 통합, 첫 배포 단계 추가, DB 설계 보강(금액 타입·이체·통화·자산 이력), 단계별 완료 기준 추가, 문서 관리 규칙 추가 |
 | 2026-10-07 | v1 — 최초 작성 |
 
@@ -72,15 +73,15 @@ Finora는 가족·지인 몇 명(10명 이하)이 사용할 수 있는 **개인 
 | 라우팅 | React Router | 완료 |
 | 스타일 | Tailwind CSS v4 + shadcn/ui (Radix, lucide 아이콘), 글꼴 Pretendard | 완료 |
 | 서버 데이터 관리 | TanStack Query | Phase 5 |
-| 차트 | Recharts | Phase 10 |
+| 차트 | Recharts | Phase 2 (통계 화면) |
 | Backend | ASP.NET Core Web API (.NET 10 LTS, C#) | Phase 3 |
 | ORM | Entity Framework Core + Npgsql | Phase 3 |
 | Database | PostgreSQL | Phase 3 |
 | 인증 | ASP.NET Core Identity + HttpOnly Cookie | Phase 4 |
 | PC | Web / PWA | — |
-| Android | PWA 우선, 필요 시 React Native 검토 | Phase 11 |
-| PWA | vite-plugin-pwa | Phase 11 |
-| 외부 데이터 | 주식/환율 금융 API | Phase 9 |
+| Android | PWA 우선, 필요 시 React Native 검토 | Phase 9 |
+| PWA | vite-plugin-pwa | Phase 9 |
+| 외부 데이터 | 주식/환율 금융 API | Phase 11 |
 
 라이브러리는 **필요한 단계가 왔을 때** 설치한다. 미리 깔아두지 않는다.
 
@@ -99,6 +100,7 @@ Finora는 가족·지인 몇 명(10명 이하)이 사용할 수 있는 **개인 
 | D7 | GitHub 저장소는 **Public** (`jang95/Finora`) | 이직·포트폴리오 제출용. 대신 비밀 정보·실제 금융 데이터·운영 서버 정보는 저장소에 절대 넣지 않는다 (9장 운영 원칙). |
 | D8 | 스타일은 CSS Modules 대신 **Tailwind CSS v4 + shadcn/ui** | 사용자의 Tailwind 경험, 채용 시장 수요, 표·폼·모달·차트(Recharts 기반) 컴포넌트를 바로 쓸 수 있음. 화면이 2개뿐인 Phase 1 직후에 전환해 비용이 최소였다. |
 | D9 | 투자 손익 색은 **한국식 (상승 빨강 / 하락 파랑)**, 가계부 수입/지출(초록/빨강)과 별도 토큰(`gain`/`loss`) | 사용자가 익숙한 국내 증권사 표시 방식. 수입/지출 토큰을 재사용하면 "이익 = 지출 색"처럼 의미가 꼬이므로 분리한다. |
+| D10 | 투자(주식)는 **첫 배포 이후**로 미룬다. 첫 배포 범위는 가계부 + 계좌 기본 + 대시보드/통계/설정. 투자 메뉴는 "준비 중"으로 남긴다 | 가족이 매일 쓰는 기능은 가계부다. 투자는 평균매수가·환율·외부 시세 API까지 필요해 범위가 가장 크므로, 먼저 가계부 중심으로 배포해 피드백을 받는다. 계좌는 가계부 거래와 총자산에 필요해서 기본 관리만 앞에 둔다. (2026-10-08) |
 
 ---
 
@@ -405,7 +407,7 @@ UserId = A인 데이터만 조회/수정/삭제
 
 ## 10. 배포 / 운영
 
-가족·지인이 집 밖에서 Android로 접속하려면 서버가 인터넷에서 접근 가능해야 한다. **Phase 6(첫 배포) 전까지** 아래 중 하나를 결정한다.
+가족·지인이 집 밖에서 Android로 접속하려면 서버가 인터넷에서 접근 가능해야 한다. **Phase 7(첫 배포) 전까지** 아래 중 하나를 결정한다.
 
 | 방식 | 장점 | 단점 |
 |---|---|---|
@@ -453,14 +455,15 @@ UserId = A인 데이터만 조회/수정/삭제
 
 ---
 
-### Phase 2 — Finora 화면 제작 (임시 데이터) ← **다음 작업**
+### Phase 2 — Finora 화면 제작 (임시 데이터) ← **진행 중**
 
 Backend 없이 화면부터 만든다. 임시 데이터는 `mocks/`에 두고 **services를 통해서만** 사용한다. (결정 D5)
+첫 배포 범위(가계부 중심)의 화면만 만든다. 투자는 메뉴만 남기고 "준비 중"으로 표시한다. (결정 D10)
 
 순서:
 
 ```text
-Login → Dashboard → Transactions → Assets → Investments → Statistics → Settings
+Login → Dashboard → Transactions → Assets(계좌) → Statistics → Settings → Investments('준비 중')
 ```
 
 목표:
@@ -469,8 +472,16 @@ Login → Dashboard → Transactions → Assets → Investments → Statistics �
 - 처음부터 반응형 (PC / 모바일)
 - `types/`에 데이터 구조 정의 → 8장 DB 설계와 맞추기
 
+작업:
+- Dashboard: 총자산, 이번 달 수입/지출, 최근 거래 (투자 카드 제거)
+- Transactions: 수입/지출/이체 등록·수정·삭제
+- Assets: 계좌 목록, 계좌별 잔액, 합계
+- Statistics: 월별 수입/지출, 카테고리별 지출 비중 (Recharts 도입)
+- Settings: 카테고리 관리, 비밀번호 변경 화면
+- Investments: "준비 중" 안내
+
 완료 기준:
-- 모든 화면이 임시 데이터로 표시됨
+- 위 화면이 모두 임시 데이터로 표시됨
 - 가계부 화면에서 등록/수정/삭제가 화면상으로 동작 (새로고침하면 초기화되어도 됨)
 
 ---
@@ -512,9 +523,10 @@ v1의 Phase 3(Backend)과 Phase 4(DB)를 합쳤다. DB 없는 API는 확인할 �
 
 ---
 
-### Phase 5 — 가계부 완성 (첫 실제 기능)
+### Phase 5 — 가계부 + 계좌 기본 완성 (첫 실제 기능)
 
 Frontend ↔ Backend를 처음으로 실제로 연결하는 단계. 가계부 하나를 끝까지 완성하며 연결 방식을 익힌다.
+가계부 거래는 계좌를 쓰므로 계좌 기본 관리도 여기서 함께 만든다.
 
 API 예:
 
@@ -524,26 +536,47 @@ POST   /api/transactions
 PUT    /api/transactions/{id}
 DELETE /api/transactions/{id}
 GET    /api/categories
+GET    /api/accounts
 ```
 
 기능:
 - 수입 / 지출 / 이체 등록, 수정, 삭제
-- 카테고리 관리
+- 카테고리 관리 (가입 시 기본 카테고리 자동 생성)
+- 계좌 등록 / 수정 / 비활성화 (현금 / 은행 / 예금 / 적금 / 기타)
+- 가계부 거래와 계좌 잔액 연동, 총자산
 - 날짜 검색, 월별 조회, 월별 합계
 
 작업:
 - TanStack Query 도입
-- `transactionService` 내부를 mock → 실제 API로 교체
+- `transactionService` 등 내부를 mock → 실제 API로 교체
 
 완료 기준:
 - 새로고침/재로그인 후에도 데이터 유지
 - 다른 사용자로 로그인하면 내 데이터가 보이지 않음
+- 거래를 등록·수정·삭제하면 계좌 잔액이 맞게 바뀜 (자동 테스트)
 
 ---
 
-### Phase 6 — 첫 배포
+### Phase 6 — 대시보드 / 통계 / 설정
 
-가계부만 있는 상태로 **가족이 실제로 써보게** 한다. 남은 기능을 만들기 전에 피드백을 받는 것이 목적이다.
+첫 배포에서 가족이 "가계부 + 한눈에 보기"를 쓸 수 있도록, 집계 화면을 실제 데이터로 연결한다.
+
+기능:
+- 대시보드: 총자산, 이번 달 수입/지출, 최근 거래
+- 통계: 월별 수입/지출 그래프, 카테고리별 지출 비중, 월별 비교
+- 설정: 비밀번호 변경
+
+규칙:
+- 합계·비중 계산은 Backend `decimal`로 한다. Frontend는 받은 값을 그리기만 한다 (결정 D4)
+
+완료 기준:
+- 대시보드·통계 숫자가 가계부 데이터와 일치 (집계 로직 자동 테스트)
+
+---
+
+### Phase 7 — 첫 배포
+
+가계부 중심 기능만 있는 상태로 **가족이 실제로 써보게** 한다. 남은 기능을 만들기 전에 피드백을 받는 것이 목적이다.
 
 작업:
 - 10장 배포 방식 결정 → 결정 기록(3장)에 추가
@@ -556,17 +589,30 @@ GET    /api/categories
 
 ---
 
-### Phase 7 — 자산 관리
+### Phase 8 — 자산 고도화
 
 기능:
-- 현금 / 은행 / 예금 / 적금 / 기타 자산
-- 자산 합계
 - 월말 잔액 스냅샷 (자산 변화 기록)
-- 가계부 거래와 계좌 잔액 연동
+- 통계에 자산 변화 그래프 추가
 
 ---
 
-### Phase 8 — 투자 관리
+### Phase 9 — PWA / Android 대응
+
+반응형은 Phase 1부터 적용되어 있으므로, 이 단계는 **설치 가능한 앱**으로 만드는 작업이다.
+
+1차 목표:
+- vite-plugin-pwa (manifest, 아이콘, service worker)
+- Android 홈 화면 설치, Windows 앱 설치
+
+필요성이 확인된 후:
+- React Native 등 별도 Android 앱 검토
+
+처음부터 Android 전용 앱을 따로 만들지 않는다.
+
+---
+
+### Phase 10 — 투자 관리
 
 기능:
 - 투자계좌, 종목 등록
@@ -574,6 +620,7 @@ GET    /api/categories
 - 보유수량, 평균매수가 (거래내역으로 계산)
 - 실현 / 미실현 손익, 수익률
 - 외화 종목 (거래 시점 환율 저장)
+- 대시보드 투자 카드, 통계 투자 성과·자산 배분
 
 완료 기준:
 - 계산 로직 단위 테스트 통과 (매수 → 일부 매도 → 추가 매수 시나리오)
@@ -581,7 +628,7 @@ GET    /api/categories
 
 ---
 
-### Phase 9 — 외부 금융 API
+### Phase 11 — 외부 금융 API
 
 ```text
 주식/환율 API → ASP.NET Core (캐시) → Finora
@@ -595,32 +642,6 @@ GET    /api/categories
 - API Key는 Backend에만 둔다
 - 요청마다 외부 API를 부르지 않는다. 가격은 DB/메모리에 캐시하고 일정 주기로 갱신한다
 - 후보: 공공데이터포털 주식시세(일별), 한국수출입은행 환율 API, 증권사 Open API(실시간) — 착수 시 이용 조건 확인 후 결정
-
----
-
-### Phase 10 — 통계 / Dashboard 고도화
-
-기능:
-- 월별 수입/지출 그래프
-- 카테고리별 지출 비중
-- 자산 변화
-- 투자 수익률, 자산 배분
-- 월별 비교
-
----
-
-### Phase 11 — PWA / Android 대응
-
-반응형은 Phase 1부터 적용되어 있으므로, 이 단계는 **설치 가능한 앱**으로 만드는 작업이다.
-
-1차 목표:
-- vite-plugin-pwa (manifest, 아이콘, service worker)
-- Android 홈 화면 설치, Windows 앱 설치
-
-필요성이 확인된 후:
-- React Native 등 별도 Android 앱 검토
-
-처음부터 Android 전용 앱을 따로 만들지 않는다.
 
 ---
 
@@ -704,16 +725,16 @@ AI 분석 (Backend에서 호출)
 [완료] Vite + React + TypeScript + ESLint 프로젝트 생성 및 실행
 [완료] Phase 0   저장소 정리 (Git: jang95 계정, local 설정)
 [완료] Phase 1   Frontend 기본 구조 (React Router, PC 사이드 메뉴 / 모바일 하단 탭)
-[진행] Phase 2   화면 제작 (임시 데이터)
+[진행] Phase 2   화면 제작 (임시 데이터) — 로그인/가입, 대시보드 요약, 가계부 목록·월 이동·등록 완료
 [ ]    Phase 3   Backend + Database 기반
 [ ]    Phase 4   회원가입 / 로그인 / 사용자 분리
-[ ]    Phase 5   가계부 완성
-[ ]    Phase 6   첫 배포
-[ ]    Phase 7   자산
-[ ]    Phase 8   투자
-[ ]    Phase 9   외부 금융 API
-[ ]    Phase 10  통계 / Dashboard
-[ ]    Phase 11  PWA / Android
+[ ]    Phase 5   가계부 + 계좌 기본 완성
+[ ]    Phase 6   대시보드 / 통계 / 설정
+[ ]    Phase 7   첫 배포
+[ ]    Phase 8   자산 고도화 (월말 스냅샷, 자산 변화)
+[ ]    Phase 9   PWA / Android
+[ ]    Phase 10  투자
+[ ]    Phase 11  외부 금융 API (주가·환율)
 [ ]    Phase 12  AI
 ```
 
