@@ -30,6 +30,8 @@ export async function addTransaction(input: NewTransaction): Promise<Transaction
 export async function updateTransaction(id: number, input: NewTransaction): Promise<Transaction> {
   const index = transactionsMock.findIndex((t) => t.id === id)
   // findIndex는 못 찾으면 -1. 실제 API라면 404 응답에 해당한다
+  // throw: 에러를 던져 함수를 그 자리에서 멈춘다 (C#의 throw new Exception과 같다).
+  //   async 함수에서 던지면 반환된 Promise가 "실패"가 되고, 부르는 쪽의 await에서 에러가 다시 나타난다.
   if (index === -1) throw new Error('거래를 찾을 수 없습니다.')
 
   const updated = toTransaction(id, input)

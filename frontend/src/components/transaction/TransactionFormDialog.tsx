@@ -27,6 +27,8 @@ import type { Category } from '@/types/category'
 import type { NewTransaction, Transaction, TransactionType } from '@/types/transaction'
 
 // 종류 선택 버튼 목록. 배열로 두고 map으로 그리면 버튼 3개를 같은 코드로 만들 수 있다.
+// 컴포넌트 함수 밖에 둔 이유: 안에 두면 그릴 때마다 같은 배열을 새로 만든다. 바뀌지 않는 값은 밖에 한 번만 만든다.
+// (이렇게 고정된 상수는 이름을 대문자_밑줄로 써서 구분하는 관례가 있다)
 const TYPE_OPTIONS: { value: TransactionType; label: string }[] = [
   { value: 'Expense', label: '지출' },
   { value: 'Income', label: '수입' },
@@ -42,6 +44,8 @@ interface TransactionFormDialogProps {
   categories: Category[]
   accounts: Account[]
   // 저장·삭제 처리는 부모가 한다. 컴포넌트는 service를 직접 부르지 않고 입력값만 넘긴다 (계획서 6장 폴더 규칙).
+  // [함수 타입] (매개변수: 타입) => 반환 타입. "NewTransaction을 받아서 Promise<void>를 돌려주는 함수"를 props로 받는다.
+  //   C#의 Func<NewTransaction, Task>와 같다. Promise<void>는 "끝나는 시점만 알려주고 값은 없음" (C#의 Task)
   onSubmit: (input: NewTransaction) => Promise<void>
   onDelete: () => Promise<void>
 }
@@ -79,6 +83,9 @@ function TransactionForm({ transaction, categories, accounts, onSubmit, onDelete
   // () => ...: 함수로 넘기면 처음 한 번만 계산한다 (getToday()를 그릴 때마다 부르지 않게)
   const [date, setDate] = useState(() => transaction?.date ?? getToday())
   // select·input의 값은 항상 문자열이다. 그래서 id도 문자열로 들고 있다가 저장할 때 숫자로 바꾼다. ''는 "선택 안 함"
+  // transaction?.categoryId?.toString() ?? '' 읽는 법 (?. 와 ?? 는 transactionService 설명 참고):
+  //   등록이면(transaction이 null) → undefined → '' / 이체라 categoryId가 없으면 → undefined → ''
+  //   둘 다 있으면 → 3 → '3' (toString(): 숫자를 문자열로)
   const [categoryId, setCategoryId] = useState(transaction?.categoryId?.toString() ?? '')
   const [accountId, setAccountId] = useState(transaction?.accountId.toString() ?? '')
   const [toAccountId, setToAccountId] = useState(transaction?.toAccountId?.toString() ?? '')
@@ -98,10 +105,17 @@ function TransactionForm({ transaction, categories, accounts, onSubmit, onDelete
     setCategoryId('')
   }
 
+  // [async / await] C#과 같은 개념이다.
+  // - async 함수 안에서 await를 붙이면, 그 Promise가 끝날 때까지 다음 줄로 넘어가지 않고 기다린다.
+  // - 기다리는 동안 화면이 멈추지 않는다 (브라우저는 다른 일을 계속 한다).
+  // - await한 작업이 실패(throw)하면 그 자리에서 에러가 나서 try/catch/finally로 잡을 수 있다.
+  //   .then()으로 쓴 DashboardPage와 같은 일을 하지만, 위에서 아래로 읽혀서 순서가 있는 작업에 편하다.
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     // 화면 검사는 편의용이다. 최종 검사(내 계좌인지, 같은 계좌인지)는 Backend가 한다.
     if (isSameAccount) return
+    // 저장 중에는 버튼을 꺼서(disabled) 두 번 눌러 같은 거래가 두 번 저장되는 것을 막는다.
+    // 실제 API는 응답까지 시간이 걸려서, 그 사이 사용자가 다시 누를 수 있기 때문이다.
     setIsSaving(true)
     try {
       await onSubmit({
@@ -172,7 +186,10 @@ function TransactionForm({ transaction, categories, accounts, onSubmit, onDelete
         />
       </div>
 
-      {/* 이체가 아닐 때만 카테고리. 화면에서 빠진 칸은 required 검사도 하지 않는다 */}
+      {/* 이체가 아닐 때만 카테고리. 화면에서 빠진 칸은 required 검사도 하지 않는다
+          [조건부 렌더링] {조건 && (화면)}: 조건이 true면 화면을 그리고, false면 아무것도 그리지 않는다.
+            둘 중 하나를 그릴 때는 {조건 ? (A) : (B)} 를 쓴다 (아래 Label 참고).
+            주의: 조건이 숫자 0이면 0이 그대로 화면에 찍힌다. 그래서 조건은 true/false 값으로 쓴다. */}
       {!isTransfer && (
         <div className="flex flex-col gap-2">
           <Label htmlFor="category">카테고리</Label>
@@ -236,7 +253,11 @@ function TransactionForm({ transaction, categories, accounts, onSubmit, onDelete
         {/* 수정일 때만 삭제 버튼. sm:mr-auto: PC에서 왼쪽 끝으로 밀어 저장 버튼과 떨어뜨린다 (실수로 누르지 않게) */}
         {transaction !== null && (
           // AlertDialog: 되돌릴 수 없는 작업 전에 한 번 더 묻는 확인 창. Trigger 버튼을 누르면 열린다.
+          // 열림 state를 직접 만들지 않았다 (거래 팝업과 다름). 부모가 알 필요가 없으면 컴포넌트가 알아서 관리하게 둔다.
+          // 확인(Action)·취소(Cancel)를 누르면 자동으로 닫힌다.
           <AlertDialog>
+            {/* asChild: Trigger가 자기 버튼을 따로 만들지 않고, 안쪽 자식(<Button>)에 "누르면 열기" 기능만 붙인다.
+                없으면 <button> 안에 <button>이 들어가는 잘못된 HTML이 되고, 우리 Button 모양도 쓸 수 없다. */}
             <AlertDialogTrigger asChild>
               <Button type="button" variant="destructive" className="sm:mr-auto" disabled={isSaving}>
                 삭제
@@ -270,6 +291,8 @@ function TransactionForm({ transaction, categories, accounts, onSubmit, onDelete
 // 계좌 선택 칸. "보내는 계좌"와 "받는 계좌"에 같은 모양이 두 번 필요해서 작은 컴포넌트로 뺐다.
 // ComponentProps<typeof NativeSelect>: NativeSelect가 받는 props 타입을 그대로 가져온다.
 // Omit으로 value/onChange만 빼고 우리 방식(문자열 값을 바로 넘김)으로 다시 정의한다. 나머지(id, aria-*)는 그대로 전달.
+// [교집합 타입] A & B: A의 속성과 B의 속성을 모두 가진 타입. interface의 extends와 비슷하다.
+//   interface는 Omit<...> 같은 계산된 타입을 이어 붙이기 불편해서 여기서는 type + & 를 썼다.
 type AccountSelectProps = Omit<ComponentProps<typeof NativeSelect>, 'value' | 'onChange'> & {
   accounts: Account[]
   value: string
