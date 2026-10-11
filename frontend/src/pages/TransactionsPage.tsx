@@ -2,21 +2,20 @@ import { Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import MonthNavigator from '@/components/common/MonthNavigator'
 import TransactionFormDialog from '@/components/transaction/TransactionFormDialog'
-import TransactionRow from '@/components/transaction/TransactionRow'
+import DailyTransactionList from '@/components/transaction/DailyTransactionList'
+import LedgerSummary from '@/components/transaction/LedgerSummary'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { getAccounts } from '@/services/assetService'
 import { getCategories } from '@/services/categoryService'
 import {
   addTransaction,
   deleteTransaction,
-  getTransactions,
+  getMonthlyLedger,
   updateTransaction,
 } from '@/services/transactionService'
 import type { Account } from '@/types/asset'
 import type { Category } from '@/types/category'
-import type { NewTransaction, Transaction } from '@/types/transaction'
-import { formatDate } from '@/utils/format'
+import type { MonthlyLedger, NewTransaction, Transaction } from '@/types/transaction'
 import { getThisMonth, type YearMonth } from '@/utils/yearMonth'
 
 function TransactionsPage() {
@@ -24,7 +23,8 @@ function TransactionsPage() {
   const [yearMonth, setYearMonth] = useState<YearMonth>(getThisMonth)
   const { year, month } = yearMonth
 
-  const [transactions, setTransactions] = useState<Transaction[] | null>(null)
+  // 선택한 달의 요약 + 날짜별 거래
+  const [ledger, setLedger] = useState<MonthlyLedger | null>(null)
   // 목록을 다시 불러오고 싶을 때 1씩 올린다. 아래 useEffect가 이 값이 바뀐 것을 보고 다시 실행된다.
   const [reloadKey, setReloadKey] = useState(0)
 
@@ -77,8 +77,8 @@ function TransactionsPage() {
   useEffect(() => {
     let ignore = false
 
-    getTransactions(year, month).then((data) => {
-      if (!ignore) setTransactions(data)
+    getMonthlyLedger(year, month).then((data) => {
+      if (!ignore) setLedger(data)
     })
 
     return () => {
@@ -101,29 +101,13 @@ function TransactionsPage() {
         거래 등록
       </Button>
 
-      {transactions === null ? (
+      {ledger === null ? (
         <p className="text-muted-foreground">불러오는 중...</p>
-      ) : transactions.length === 0 ? (
-        <p className="text-muted-foreground">거래 내역이 없습니다.</p>
       ) : (
-        <Card className="gap-0 py-0">
-          {/* divide-y: 항목 "사이"에만 선을 긋는다 (마지막 항목 아래는 선 없음) */}
-          <ul className="divide-y">
-            {/* map: 배열의 각 항목을 화면 요소로 바꾼다. C# LINQ의 Select와 같다.
-                key: React가 목록에서 어떤 항목이 추가·삭제·이동됐는지 구분하는 값. 항목마다 고유해야 하므로 id를 쓴다. */}
-            {transactions.map((t, index) => (
-              <li key={t.id}>
-                {/* 날짜가 바뀌는 첫 항목에만 날짜 제목을 붙인다 (목록은 날짜순으로 정렬돼 있음) */}
-                {(index === 0 || transactions[index - 1].date !== t.date) && (
-                  <div className="border-b bg-muted/50 px-4 py-2 text-xs font-medium text-muted-foreground">
-                    {formatDate(t.date)}
-                  </div>
-                )}
-                <TransactionRow transaction={t} onClick={() => openEditForm(t)} />
-              </li>
-            ))}
-          </ul>
-        </Card>
+        <>
+          <LedgerSummary income={ledger.income} expense={ledger.expense} balance={ledger.balance} />
+          <DailyTransactionList days={ledger.days} onSelect={openEditForm} />
+        </>
       )}
 
       <TransactionFormDialog

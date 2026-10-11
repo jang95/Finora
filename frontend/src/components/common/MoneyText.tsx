@@ -18,10 +18,11 @@ interface MoneyTextProps {
   amount: number
   tone?: MoneyTone
   className?: string // 사용하는 쪽에서 크기 등 스타일을 덧붙일 때 (cn으로 합친다)
+  signed?: boolean // true면 부호(+/-)를 붙인다. 가계부 합계(수입 - 지출)처럼 색 없이 부호만 필요할 때. profit은 항상 부호를 붙인다
 }
 
 // 매개변수 자리의 { amount, tone, className }는 구조 분해: props.amount 대신 amount로 바로 쓴다
-function MoneyText({ amount, tone, className }: MoneyTextProps) {
+function MoneyText({ amount, tone, className, signed = false }: MoneyTextProps) {
   const isProfit = tone === 'profit'
 
   return (
@@ -36,7 +37,7 @@ function MoneyText({ amount, tone, className }: MoneyTextProps) {
         className,
       )}
     >
-      {formatMoney(amount, isProfit)}
+      {formatMoney(amount, isProfit || signed)}
     </span>
   )
 }

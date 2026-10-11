@@ -21,3 +21,20 @@ export interface Transaction {
 // 등록할 때 보내는 값. id와 이름(accountName 등)은 저장하는 쪽(지금은 service, 나중엔 Backend)이 채운다.
 // Omit<T, 키들>: T에서 해당 속성만 뺀 타입을 만든다. 같은 속성을 두 번 적지 않아도 된다.
 export type NewTransaction = Omit<Transaction, 'id' | 'accountName' | 'toAccountName' | 'categoryName'>
+
+// 하루치 거래와 그날 합계 (이체는 합계에 넣지 않음). 가계부 목록의 날짜 묶음과 달력 칸에 쓴다.
+export interface DailyTransactions {
+  date: string // 'YYYY-MM-DD'
+  income: number
+  expense: number
+  transactions: Transaction[] // 같은 날 안에서 최신(나중 등록)이 위
+}
+
+// 가계부 한 달 화면 응답: 월 요약 + 날짜별 묶음 (최신 날짜가 위)
+// Backend가 생기면 GET /api/transactions/monthly?year=&month= 응답 형태가 된다. 합계는 Backend decimal로 계산한다 (결정 D4)
+export interface MonthlyLedger {
+  income: number
+  expense: number
+  balance: number // 수입 - 지출 (음수면 지출이 더 많음)
+  days: DailyTransactions[]
+}

@@ -1,7 +1,7 @@
 import { accountsMock } from '@/mocks/accounts'
 import { categoriesMock } from '@/mocks/categories'
 import { transactionsMock } from '@/mocks/transactions'
-import type { NewTransaction, Transaction } from '@/types/transaction'
+import type { DailyTransactions, MonthlyLedger, NewTransaction, Transaction } from '@/types/transaction'
 
 // 월별 거래 목록 (최신 날짜가 위). month는 1~12.
 // 지금은 mock에서 걸러서 돌려주고, Backend가 생기면 GET /api/transactions?year=&month= 호출로 바꾼다.
@@ -10,6 +10,31 @@ export async function getTransactions(year: number, month: number): Promise<Tran
   const prefix = `${year}-${String(month).padStart(2, '0')}-`
 
   return transactionsMock.filter((t) => t.date.startsWith(prefix)).sort(byNewest)
+}
+
+// 가계부 한 달 화면: 월 요약(수입/지출/합계) + 날짜별 묶음과 그날 합계.
+// 지금은 여기서 합계를 내고, Backend가 생기면 GET /api/transactions/monthly?year=&month= 호출로 바꾼다. (결정 D4)
+export async function getMonthlyLedger(year: number, month: number): Promise<MonthlyLedger> {
+  const transactions = await getTransactions(year, month)
+
+  // 날짜별로 묶는다. 목록이 이미 최신 날짜순이라 Map에 넣은 순서(= 처음 나온 순서)도 최신 날짜순이 된다.
+  // (Map은 넣은 순서를 기억한다. C#의 Dictionary는 순서를 보장하지 않는 것과 다르다)
+  const byDate = new Map<string, DailyTransactions>()
+  for (const t of transactions) {
+    let day = byDate.get(t.date)
+    if (day === undefined) {
+      day = { date: t.date, income: 0, expense: 0, transactions: [] }
+      byDate.set(t.date, day)
+    }
+    day.transactions.push(t)
+    if (t.type === 'Income') day.income += t.amount
+    if (t.type === 'Expense') day.expense += t.amount
+  }
+
+  const days = [...byDate.values()]
+  const income = sumBy(days, (d) => d.income)
+  const expense = sumBy(days, (d) => d.expense)
+  return { income, expense, balance: income - expense, days }
 }
 
 // 최근 거래 count건 (최신이 위). 대시보드용.
@@ -23,6 +48,12 @@ export async function getRecentTransactions(count: number): Promise<Transaction[
 // 정렬 기준: 'YYYY-MM-DD' 문자열은 사전순 = 날짜순이라 문자열 비교로 정렬할 수 있다. 같은 날은 나중에 등록한 것(id 큰 것)이 위.
 function byNewest(a: Transaction, b: Transaction): number {
   return b.date.localeCompare(a.date) || b.id - a.id
+}
+
+// 배열의 각 항목에서 숫자를 골라(pick) 더한다. pick은 "항목 → 숫자" 함수 (C# LINQ의 Sum(x => x.Income)과 같다)
+// <T>: 제네릭. 어떤 타입의 배열이든 받을 수 있고, pick의 매개변수 타입도 그 배열의 항목 타입으로 맞춰진다 (C#의 제네릭과 같다)
+function sumBy<T>(items: T[], pick: (item: T) => number): number {
+  return items.reduce((sum, item) => sum + pick(item), 0)
 }
 
 // 거래 등록. 지금은 mock 배열에 추가만 한다 (새로고침하면 사라짐).
