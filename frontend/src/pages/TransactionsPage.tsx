@@ -51,6 +51,13 @@ function TransactionsPage() {
   // 다른 달로 넘어가면 고른 날짜는 그 달에 없으므로 "안 고름"으로 본다 (파생 값. 월 이동 때 따로 지우지 않아도 된다)
   const monthPrefix = toDateKey(yearMonth, 1).slice(0, 8) // 'YYYY-MM-' (1일 날짜에서 앞 8글자)
   const selectedDateInMonth = selectedDate?.startsWith(monthPrefix) ? selectedDate : null
+  // 새 거래 날짜 칸의 처음 값:
+  //   달력에서 날짜를 골라뒀으면 그 날짜 → 오늘이 보고 있는 달 안이면 오늘 → 아니면 보고 있는 달의 1일
+  //   (지난달을 보면서 등록하면 대개 지난달 거래라서. 저장 후 화면이 갑자기 이번 달로 바뀌지 않게)
+  const today = getToday()
+  const newTransactionDate =
+    (view === 'calendar' ? selectedDateInMonth : null) ??
+    (today.startsWith(monthPrefix) ? today : toDateKey(yearMonth, 1))
 
   const [isFormOpen, setIsFormOpen] = useState(false)
   // 팝업에서 수정 중인 거래. null이면 새로 등록.
@@ -206,8 +213,7 @@ function TransactionsPage() {
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
         transaction={editingTransaction}
-        // 달력에서 날짜를 골라둔 상태로 등록하면 그 날짜로 시작한다
-        defaultDate={view === 'calendar' ? (selectedDateInMonth ?? undefined) : undefined}
+        defaultDate={newTransactionDate}
         categories={categories}
         accounts={accounts}
         onSubmit={handleSubmit}

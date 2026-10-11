@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import type { DailyTransactions } from '@/types/transaction'
-import { formatAmount, formatMoney } from '@/utils/format'
+import { formatAmount, formatMoney, formatMoneyCompact } from '@/utils/format'
 import { getDaysInMonth, getFirstWeekday, getToday, toDateKey, type YearMonth } from '@/utils/yearMonth'
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
@@ -62,7 +62,8 @@ function LedgerCalendar({ yearMonth, days, selectedDate, onSelectDate }: LedgerC
               className={cn(
                 // min-w-0: 금액이 길어도 칸이 넓어지지 않게 (넘치는 글자는 truncate로 자른다)
                 'flex min-h-16 min-w-0 flex-col items-stretch gap-0.5 p-1 text-left hover:bg-muted/50 sm:min-h-20 sm:p-1.5',
-                isSelected && 'bg-accent hover:bg-accent',
+                // 선택한 칸은 안쪽 테두리로 표시한다 (배경색만으로는 다크 모드에서 구분이 약했다)
+                isSelected && 'bg-accent ring-2 ring-primary ring-inset hover:bg-accent',
               )}
             >
               <span
@@ -74,22 +75,30 @@ function LedgerCalendar({ yearMonth, days, selectedDate, onSelectDate }: LedgerC
               >
                 {day}
               </span>
-              {/* 0원인 쪽은 생략. 원 표시 없이 숫자만 (좁은 칸) */}
+              {/* 0원인 쪽은 생략 */}
               {summary !== undefined && summary.income > 0 && (
-                <span className="truncate text-[10px] text-income tabular-nums sm:text-xs">
-                  {formatAmount(summary.income)}
-                </span>
+                <CellAmount amount={summary.income} className="text-income" />
               )}
               {summary !== undefined && summary.expense > 0 && (
-                <span className="truncate text-[10px] text-expense tabular-nums sm:text-xs">
-                  {formatAmount(summary.expense)}
-                </span>
+                <CellAmount amount={summary.expense} className="text-expense" />
               )}
             </button>
           )
         })}
       </div>
     </div>
+  )
+}
+
+// 칸 안의 금액. 모바일 칸(약 50px)에는 3,800,000이 들어가지 않아서 '380만'처럼 짧게,
+// sm(640px) 이상에서는 원 없이 전체 숫자로 보여준다.
+// sm:hidden / hidden sm:inline: 화면 폭에 따라 둘 중 하나만 보이게 한다 (정확한 금액은 아래 목록과 aria-label에 있다)
+function CellAmount({ amount, className }: { amount: number; className: string }) {
+  return (
+    <span className={cn('truncate text-[10px] tabular-nums sm:text-xs', className)}>
+      <span className="sm:hidden">{formatMoneyCompact(amount)}</span>
+      <span className="hidden sm:inline">{formatAmount(amount)}</span>
+    </span>
   )
 }
 

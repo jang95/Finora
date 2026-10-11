@@ -42,7 +42,7 @@ interface TransactionFormDialogProps {
   onOpenChange: (open: boolean) => void
   // 수정할 거래. null이면 새로 등록한다. (등록/수정 폼이 거의 같아서 컴포넌트 하나로 처리한다)
   transaction: Transaction | null
-  // 새로 등록할 때 날짜 칸의 처음 값. 없으면 오늘 (달력에서 고른 날짜로 등록할 때 쓴다)
+  // 새로 등록할 때 날짜 칸의 처음 값. 없으면 오늘 (달력에서 고른 날짜, 보고 있는 달 등 부모가 정한다)
   defaultDate?: string
   categories: Category[]
   accounts: Account[]
