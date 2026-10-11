@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import CategorySection from '@/components/settings/CategorySection'
+import PasswordChangeCard from '@/components/settings/PasswordChangeCard'
 import { addCategory, deleteCategory, getCategories, renameCategory } from '@/services/categoryService'
 import type { Category, CategoryType } from '@/types/category'
 
@@ -59,6 +60,8 @@ function SettingsPage() {
           <CategorySection title="수입 카테고리" {...sectionProps('Income')} />
         </div>
       )}
+
+      <PasswordChangeCard />
     </div>
   )
 }
