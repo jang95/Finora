@@ -1,8 +1,8 @@
 import { Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import MoneyText from '@/components/common/MoneyText'
 import MonthNavigator from '@/components/common/MonthNavigator'
 import TransactionFormDialog from '@/components/transaction/TransactionFormDialog'
+import TransactionRow from '@/components/transaction/TransactionRow'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { getAccounts } from '@/services/assetService'
@@ -136,35 +136,6 @@ function TransactionsPage() {
         onDelete={handleDelete}
       />
     </div>
-  )
-}
-
-// 거래 한 줄. 이 화면에서만 쓰므로 같은 파일에 둔다. (다른 화면에서도 쓰게 되면 components/transaction/으로 옮긴다)
-// 누르면 수정 팝업이 열린다.
-function TransactionRow({ transaction: t, onClick }: { transaction: Transaction; onClick: () => void }) {
-  const isTransfer = t.type === 'Transfer'
-
-  return (
-    // 누를 수 있는 것은 div가 아니라 button으로 만든다. 그래야 키보드(Tab, Enter)로도 선택되고 화면낭독기가 "버튼"이라고 읽는다.
-    <button
-      type="button"
-      className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left hover:bg-muted/50"
-      onClick={onClick}
-    >
-      <div className="min-w-0">
-        <p className="font-medium">{isTransfer ? '이체' : t.categoryName}</p>
-        {/* truncate: 너무 길면 한 줄에서 ...으로 자른다 (모바일 대비) */}
-        <p className="truncate text-sm text-muted-foreground">
-          {isTransfer ? `${t.accountName} → ${t.toAccountName}` : t.accountName}
-          {t.memo && ` · ${t.memo}`}
-        </p>
-      </div>
-      <MoneyText
-        amount={t.amount}
-        tone={t.type === 'Income' ? 'income' : t.type === 'Expense' ? 'expense' : undefined}
-        className="shrink-0 font-semibold"
-      />
-    </button>
   )
 }
 

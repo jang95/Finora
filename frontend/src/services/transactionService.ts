@@ -9,10 +9,20 @@ export async function getTransactions(year: number, month: number): Promise<Tran
   // padStart: 앞을 '0'으로 채워 2자리로 만든다. 10 → '10', 7 → '07'
   const prefix = `${year}-${String(month).padStart(2, '0')}-`
 
-  return transactionsMock
-    .filter((t) => t.date.startsWith(prefix))
-    // 'YYYY-MM-DD' 문자열은 사전순 = 날짜순이라 문자열 비교로 정렬할 수 있다. 같은 날은 나중에 등록한 것(id 큰 것)이 위.
-    .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id)
+  return transactionsMock.filter((t) => t.date.startsWith(prefix)).sort(byNewest)
+}
+
+// 최근 거래 count건 (최신이 위). 대시보드용.
+// Backend가 생기면 대시보드 API가 함께 내려주므로 이 함수는 dashboardService 안에서만 쓴다.
+export async function getRecentTransactions(count: number): Promise<Transaction[]> {
+  // [...배열]로 복사한 뒤 정렬한다. sort는 원본 배열 순서를 바꿔버리기 때문 (mock 원본은 그대로 둔다)
+  // slice(0, count): 앞에서 count개만 잘라낸 새 배열
+  return [...transactionsMock].sort(byNewest).slice(0, count)
+}
+
+// 정렬 기준: 'YYYY-MM-DD' 문자열은 사전순 = 날짜순이라 문자열 비교로 정렬할 수 있다. 같은 날은 나중에 등록한 것(id 큰 것)이 위.
+function byNewest(a: Transaction, b: Transaction): number {
+  return b.date.localeCompare(a.date) || b.id - a.id
 }
 
 // 거래 등록. 지금은 mock 배열에 추가만 한다 (새로고침하면 사라짐).

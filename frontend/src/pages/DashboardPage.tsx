@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router'
 import MoneyText from '@/components/common/MoneyText'
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import TransactionRow from '@/components/transaction/TransactionRow'
+import { Button } from '@/components/ui/button'
+import { Card, CardAction, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { getDashboardSummary } from '@/services/dashboardService'
 import type { DashboardSummary } from '@/types/dashboard'
 
@@ -76,8 +79,30 @@ function DashboardPage() {
             </CardTitle>
           </CardHeader>
         </Card>
-
       </div>
+
+      <Card className="gap-0 pb-0">
+        {/* CardAction: 카드 제목 줄의 오른쪽 끝 자리 (shadcn Card 구성 요소) */}
+        <CardHeader className="border-b pb-4">
+          <CardTitle>최근 거래</CardTitle>
+          <CardAction>
+            <Button variant="link" size="sm" className="h-auto p-0" asChild>
+              <Link to="/transactions">전체 보기</Link>
+            </Button>
+          </CardAction>
+        </CardHeader>
+        {summary.recentTransactions.length === 0 ? (
+          <p className="px-6 py-4 text-sm text-muted-foreground">거래 내역이 없습니다.</p>
+        ) : (
+          <ul className="divide-y">
+            {summary.recentTransactions.map((t) => (
+              <li key={t.id}>
+                <TransactionRow transaction={t} showDate />
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </div>
   )
 }
