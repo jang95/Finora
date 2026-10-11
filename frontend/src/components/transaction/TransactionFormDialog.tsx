@@ -25,6 +25,7 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import type { Account } from '@/types/asset'
 import type { Category } from '@/types/category'
 import type { NewTransaction, Transaction, TransactionType } from '@/types/transaction'
+import { getToday } from '@/utils/yearMonth'
 
 // 종류 선택 버튼 목록. 배열로 두고 map으로 그리면 버튼 3개를 같은 코드로 만들 수 있다.
 // 컴포넌트 함수 밖에 둔 이유: 안에 두면 그릴 때마다 같은 배열을 새로 만든다. 바뀌지 않는 값은 밖에 한 번만 만든다.
@@ -41,6 +42,8 @@ interface TransactionFormDialogProps {
   onOpenChange: (open: boolean) => void
   // 수정할 거래. null이면 새로 등록한다. (등록/수정 폼이 거의 같아서 컴포넌트 하나로 처리한다)
   transaction: Transaction | null
+  // 새로 등록할 때 날짜 칸의 처음 값. 없으면 오늘 (달력에서 고른 날짜로 등록할 때 쓴다)
+  defaultDate?: string
   categories: Category[]
   accounts: Account[]
   // 저장·삭제 처리는 부모가 한다. 컴포넌트는 service를 직접 부르지 않고 입력값만 넘긴다 (계획서 6장 폴더 규칙).
@@ -70,6 +73,7 @@ function TransactionFormDialog({ open, onOpenChange, ...formProps }: Transaction
 
 interface TransactionFormProps {
   transaction: Transaction | null
+  defaultDate?: string
   categories: Category[]
   accounts: Account[]
   onSubmit: (input: NewTransaction) => Promise<void>
@@ -77,11 +81,19 @@ interface TransactionFormProps {
   onCancel: () => void
 }
 
-function TransactionForm({ transaction, categories, accounts, onSubmit, onDelete, onCancel }: TransactionFormProps) {
+function TransactionForm({
+  transaction,
+  defaultDate,
+  categories,
+  accounts,
+  onSubmit,
+  onDelete,
+  onCancel,
+}: TransactionFormProps) {
   // useState의 초기값은 처음 만들어질 때 한 번만 쓰인다. 수정이면 기존 거래 값으로 시작한다.
   const [type, setType] = useState<TransactionType>(transaction?.type ?? 'Expense')
   // () => ...: 함수로 넘기면 처음 한 번만 계산한다 (getToday()를 그릴 때마다 부르지 않게)
-  const [date, setDate] = useState(() => transaction?.date ?? getToday())
+  const [date, setDate] = useState(() => transaction?.date ?? defaultDate ?? getToday())
   // select·input의 값은 항상 문자열이다. 그래서 id도 문자열로 들고 있다가 저장할 때 숫자로 바꾼다. ''는 "선택 안 함"
   // transaction?.categoryId?.toString() ?? '' 읽는 법 (?. 와 ?? 는 transactionService 설명 참고):
   //   등록이면(transaction이 null) → undefined → '' / 이체라 categoryId가 없으면 → undefined → ''
@@ -317,14 +329,6 @@ function AccountSelect({ accounts, value, onChange, ...rest }: AccountSelectProp
       ))}
     </NativeSelect>
   )
-}
-
-// 오늘 날짜를 'YYYY-MM-DD'로. toISOString()은 UTC 기준이라 한국 오전 9시 전에는 어제 날짜가 나오므로 직접 만든다.
-function getToday(): string {
-  const today = new Date()
-  const month = String(today.getMonth() + 1).padStart(2, '0')
-  const day = String(today.getDate()).padStart(2, '0')
-  return `${today.getFullYear()}-${month}-${day}`
 }
 
 export default TransactionFormDialog

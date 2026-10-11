@@ -3,8 +3,10 @@ import { useEffect, useState } from 'react'
 import MonthNavigator from '@/components/common/MonthNavigator'
 import TransactionFormDialog from '@/components/transaction/TransactionFormDialog'
 import DailyTransactionList from '@/components/transaction/DailyTransactionList'
+import LedgerCalendar from '@/components/transaction/LedgerCalendar'
 import LedgerSummary from '@/components/transaction/LedgerSummary'
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getAccounts } from '@/services/assetService'
 import { getCategories } from '@/services/categoryService'
 import {
@@ -16,7 +18,15 @@ import {
 import type { Account } from '@/types/asset'
 import type { Category } from '@/types/category'
 import type { MonthlyLedger, NewTransaction, Transaction } from '@/types/transaction'
-import { getThisMonth, type YearMonth } from '@/utils/yearMonth'
+import { getThisMonth, getToday, toDateKey, type YearMonth } from '@/utils/yearMonth'
+
+// 가계부 보기 방식. 월별(연간 요약) 탭은 다음 단계에서 추가한다
+type ViewMode = 'list' | 'calendar'
+
+const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
+  { value: 'list', label: '목록' },
+  { value: 'calendar', label: '달력' },
+]
 
 function TransactionsPage() {
   // useState(getThisMonth): 함수 자체를 넘기면 처음 한 번만 실행된다 (getThisMonth()로 넘기면 그릴 때마다 실행됨)
@@ -30,6 +40,13 @@ function TransactionsPage() {
 
   const [categories, setCategories] = useState<Category[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [view, setView] = useState<ViewMode>('list')
+  // 달력에서 고른 날짜. 처음엔 오늘
+  const [selectedDate, setSelectedDate] = useState<string | null>(getToday)
+  // 다른 달로 넘어가면 고른 날짜는 그 달에 없으므로 "안 고름"으로 본다 (파생 값. 월 이동 때 따로 지우지 않아도 된다)
+  const monthPrefix = toDateKey(yearMonth, 1).slice(0, 8) // 'YYYY-MM-' (1일 날짜에서 앞 8글자)
+  const selectedDateInMonth = selectedDate?.startsWith(monthPrefix) ? selectedDate : null
+
   const [isFormOpen, setIsFormOpen] = useState(false)
   // 팝업에서 수정 중인 거래. null이면 새로 등록.
   // 닫을 때 이 값을 null로 되돌리지 않는다. 닫히는 애니메이션 동안 제목이 "거래 등록"으로 바뀌어 보이기 때문.
@@ -63,6 +80,8 @@ function TransactionsPage() {
     // 저장한 거래가 있는 달로 이동하고 목록을 다시 불러온다 (날짜를 다른 달로 고친 경우도 포함)
     const [savedYear, savedMonth] = saved.date.split('-').map(Number)
     setYearMonth({ year: savedYear, month: savedMonth })
+    // 달력에서도 저장한 날짜가 선택되게 한다
+    setSelectedDate(saved.date)
     setReloadKey((prev) => prev + 1)
   }
 
@@ -95,25 +114,62 @@ function TransactionsPage() {
         <MonthNavigator value={yearMonth} onChange={setYearMonth} />
       </div>
 
-      {/* self-end: 이 요소만 오른쪽 끝에 붙인다 */}
-      <Button className="self-end" onClick={openAddForm}>
-        <Plus />
-        거래 등록
-      </Button>
+      {/* [Tabs] shadcn(Radix) 탭. value(지금 탭)는 우리 state가 쥐고, 탭을 누르면 onValueChange로 알려준다 (제어 컴포넌트).
+            TabsContent는 value가 같을 때만 화면에 그려진다.
+          onValueChange는 string을 주므로 ViewMode로 바꿔서 넣는다 (as: "이 값은 이 타입이다"라고 TypeScript에 알려주는 것.
+            탭 value가 VIEW_OPTIONS에서만 나오므로 안전하다) */}
+      <Tabs value={view} onValueChange={(value) => setView(value as ViewMode)} className="gap-6">
+        <div className="flex items-center justify-between gap-4">
+          <TabsList>
+            {VIEW_OPTIONS.map((option) => (
+              <TabsTrigger key={option.value} value={option.value}>
+                {option.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <Button onClick={openAddForm}>
+            <Plus />
+            거래 등록
+          </Button>
+        </div>
 
-      {ledger === null ? (
-        <p className="text-muted-foreground">불러오는 중...</p>
-      ) : (
-        <>
-          <LedgerSummary income={ledger.income} expense={ledger.expense} balance={ledger.balance} />
-          <DailyTransactionList days={ledger.days} onSelect={openEditForm} />
-        </>
-      )}
+        {ledger === null ? (
+          <p className="text-muted-foreground">불러오는 중...</p>
+        ) : (
+          <>
+            <LedgerSummary income={ledger.income} expense={ledger.expense} balance={ledger.balance} />
+
+            <TabsContent value="list">
+              <DailyTransactionList days={ledger.days} onSelect={openEditForm} />
+            </TabsContent>
+
+            <TabsContent value="calendar" className="flex flex-col gap-4">
+              <LedgerCalendar
+                yearMonth={yearMonth}
+                days={ledger.days}
+                selectedDate={selectedDateInMonth}
+                onSelectDate={setSelectedDate}
+              />
+              {selectedDateInMonth === null ? (
+                <p className="text-sm text-muted-foreground">날짜를 누르면 그날 거래를 볼 수 있습니다.</p>
+              ) : (
+                // 고른 날의 묶음만 넘긴다. 거래가 없는 날이면 빈 배열 → "거래 내역이 없습니다."
+                <DailyTransactionList
+                  days={ledger.days.filter((d) => d.date === selectedDateInMonth)}
+                  onSelect={openEditForm}
+                />
+              )}
+            </TabsContent>
+          </>
+        )}
+      </Tabs>
 
       <TransactionFormDialog
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
         transaction={editingTransaction}
+        // 달력에서 날짜를 골라둔 상태로 등록하면 그 날짜로 시작한다
+        defaultDate={view === 'calendar' ? (selectedDateInMonth ?? undefined) : undefined}
         categories={categories}
         accounts={accounts}
         onSubmit={handleSubmit}

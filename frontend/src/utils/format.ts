@@ -59,3 +59,8 @@ const ratioFormatter = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 1
 export function formatRatio(value: number): string {
   return `${ratioFormatter.format(value)}%`
 }
+
+// 원 없이 숫자만. 달력 칸처럼 좁은 곳에 쓴다. 3800000 → "3,800,000"
+export function formatAmount(amount: number): string {
+  return moneyFormatter.format(amount)
+}
