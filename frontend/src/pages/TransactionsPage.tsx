@@ -1,6 +1,7 @@
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import MoneyText from '@/components/common/MoneyText'
+import MonthNavigator from '@/components/common/MonthNavigator'
 import TransactionFormDialog from '@/components/transaction/TransactionFormDialog'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -16,29 +17,12 @@ import type { Account } from '@/types/asset'
 import type { Category } from '@/types/category'
 import type { NewTransaction, Transaction } from '@/types/transaction'
 import { formatDate } from '@/utils/format'
-
-// 연·월을 한 묶음으로 다룬다. 따로 state 2개로 두면 12월 → 1월처럼 둘이 같이 바뀔 때 실수하기 쉽다.
-interface YearMonth {
-  year: number
-  month: number // 1~12
-}
-
-// 이번 달. getMonth()는 0~11이라 +1
-function getThisMonth(): YearMonth {
-  const today = new Date()
-  return { year: today.getFullYear(), month: today.getMonth() + 1 }
-}
-
-// offset만큼 월을 이동한다 (-1: 이전 달, +1: 다음 달). 연도 넘어가는 것도 처리한다.
-function addMonths({ year, month }: YearMonth, offset: number): YearMonth {
-  // new Date(2026, 12, 1)처럼 범위를 넘는 월을 넣으면 Date가 알아서 2027년 1월로 바꿔준다
-  const date = new Date(year, month - 1 + offset, 1)
-  return { year: date.getFullYear(), month: date.getMonth() + 1 }
-}
+import { getThisMonth, type YearMonth } from '@/utils/yearMonth'
 
 function TransactionsPage() {
   // useState(getThisMonth): 함수 자체를 넘기면 처음 한 번만 실행된다 (getThisMonth()로 넘기면 그릴 때마다 실행됨)
-  const [{ year, month }, setYearMonth] = useState<YearMonth>(getThisMonth)
+  const [yearMonth, setYearMonth] = useState<YearMonth>(getThisMonth)
+  const { year, month } = yearMonth
 
   const [transactions, setTransactions] = useState<Transaction[] | null>(null)
   // 목록을 다시 불러오고 싶을 때 1씩 올린다. 아래 useEffect가 이 값이 바뀐 것을 보고 다시 실행된다.
@@ -50,11 +34,6 @@ function TransactionsPage() {
   // 팝업에서 수정 중인 거래. null이면 새로 등록.
   // 닫을 때 이 값을 null로 되돌리지 않는다. 닫히는 애니메이션 동안 제목이 "거래 등록"으로 바뀌어 보이기 때문.
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
-
-  // 이전 값(prev)을 받아 새 값을 만드는 형태. 버튼을 빠르게 여러 번 눌러도 항상 최신 값 기준으로 계산된다.
-  function moveMonth(offset: number) {
-    setYearMonth((prev) => addMonths(prev, offset))
-  }
 
   // 등록 폼의 선택 목록. 월이 바뀌어도 그대로이므로 처음 한 번만 불러온다 (의존성 배열 [])
   useEffect(() => {
@@ -113,18 +92,7 @@ function TransactionsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">가계부</h1>
-        <div className="flex items-center gap-1">
-          {/* 아이콘만 있는 버튼은 화면낭독기가 읽을 이름이 없으므로 aria-label을 붙인다 */}
-          <Button variant="ghost" size="icon" aria-label="이전 달" onClick={() => moveMonth(-1)}>
-            <ChevronLeft />
-          </Button>
-          <span className="min-w-28 text-center font-medium tabular-nums">
-            {year}년 {month}월
-          </span>
-          <Button variant="ghost" size="icon" aria-label="다음 달" onClick={() => moveMonth(1)}>
-            <ChevronRight />
-          </Button>
-        </div>
+        <MonthNavigator value={yearMonth} onChange={setYearMonth} />
       </div>
 
       {/* self-end: 이 요소만 오른쪽 끝에 붙인다 */}
