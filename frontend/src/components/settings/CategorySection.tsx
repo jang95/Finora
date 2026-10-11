@@ -54,7 +54,11 @@ function CategorySection({ title, categories, onAdd, onRename, onDelete }: Categ
   async function handleAdd(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const name = newName.trim()
-    if (name === '') return
+    // required는 공백만 입력해도 통과시키므로 여기서 한 번 더 확인한다
+    if (name === '') {
+      setError('카테고리 이름을 입력하세요.')
+      return
+    }
     if (await run(() => onAdd(name))) setNewName('')
   }
 
@@ -64,10 +68,20 @@ function CategorySection({ title, categories, onAdd, onRename, onDelete }: Categ
     setEditingName(category.name)
   }
 
+  // 취소하면 고치던 중에 난 오류 문구도 같이 지운다
+  function cancelEdit() {
+    setEditingId(null)
+    setError('')
+  }
+
   async function handleRename(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const name = editingName.trim()
-    if (editingId === null || name === '') return
+    if (editingId === null) return
+    if (name === '') {
+      setError('카테고리 이름을 입력하세요.')
+      return
+    }
     if (await run(() => onRename(editingId, name))) setEditingId(null)
   }
 
@@ -97,7 +111,7 @@ function CategorySection({ title, categories, onAdd, onRename, onDelete }: Categ
                     <Button type="submit" size="sm" disabled={isSaving}>
                       저장
                     </Button>
-                    <Button type="button" size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                    <Button type="button" size="sm" variant="ghost" onClick={cancelEdit}>
                       취소
                     </Button>
                   </form>

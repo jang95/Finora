@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import MoneyText from '@/components/common/MoneyText'
 import MonthNavigator from '@/components/common/MonthNavigator'
+import { cn } from '@/lib/utils'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   ChartContainer,
@@ -74,7 +75,11 @@ function StatisticsPage() {
 // 최근 6개월 수입/지출 막대그래프
 function MonthlyChartCard({ totals }: { totals: MonthlyTotal[] }) {
   // 가로축에 보여줄 이름('10월')을 붙인다. 금액은 건드리지 않는다.
-  const chartData = totals.map((t) => ({ ...t, label: `${t.month}월` }))
+  // 1월에는 연도를 붙여서('27년 1월') 기간이 해를 넘기는 것을 알 수 있게 한다.
+  const chartData = totals.map((t) => ({
+    ...t,
+    label: t.month === 1 ? `${t.year % 100}년 1월` : `${t.month}월`,
+  }))
 
   return (
     <Card>
@@ -96,7 +101,28 @@ function MonthlyChartCard({ totals }: { totals: MonthlyTotal[] }) {
             {/* tickFormatter: 축 숫자 표시 방법. 3800000 → '380만' */}
             <YAxis tickFormatter={formatMoneyCompact} tickLine={false} axisLine={false} width={48} />
             {/* 막대에 마우스를 올리면 그달 수입·지출 금액을 보여준다 */}
-            <ChartTooltip content={<ChartTooltipContent />} />
+            {/* formatter: 툴팁의 한 줄(수입 또는 지출)을 직접 그린다. 기본 표시는 '원'이 없어서 MoneyText로 바꿨다.
+                  formatter를 쓰면 기본 색 점이 빠지므로 색 점도 같이 그린다.
+                  name은 <Bar dataKey>의 값('income' | 'expense')이다 */}
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  formatter={(value, name) => (
+                    <div className="flex w-full items-center gap-2">
+                      <span
+                        className={cn(
+                          'size-2.5 shrink-0 rounded-[2px]',
+                          name === 'income' ? 'bg-chart-income' : 'bg-chart-expense',
+                        )}
+                      />
+                      <span className="text-muted-foreground">{name === 'income' ? chartConfig.income.label : chartConfig.expense.label}
+                      </span>
+                      <MoneyText amount={Number(value)} className="ml-auto font-medium" />
+                    </div>
+                  )}
+                />
+              }
+            />
             {/* itemSorter={null}: 범례를 이름순(지출→수입)으로 정렬하지 않고 아래 <Bar> 순서(수입→지출) 그대로 둔다 */}
             <ChartLegend content={<ChartLegendContent />} itemSorter={null} />
             {/* radius: 막대 모서리 둥글기 [왼위, 오른위, 오른아래, 왼아래] */}
@@ -157,7 +183,8 @@ function CategoryExpenseCard({ expenses }: { expenses: CategoryExpense[] }) {
               <li key={c.categoryId} className="flex flex-col gap-1.5">
                 <div className="flex items-baseline justify-between gap-4 text-sm">
                   <span className="font-medium">{c.categoryName}</span>
-                  <span className="tabular-nums">
+                  {/* whitespace-nowrap: 금액이 아주 길어도 비율이 다음 줄로 내려가지 않게 한다 */}
+                  <span className="whitespace-nowrap tabular-nums">
                     <MoneyText amount={c.amount} className="font-semibold" />
                     <span className="ml-2 text-muted-foreground">{formatRatio(c.ratio)}</span>
                   </span>
