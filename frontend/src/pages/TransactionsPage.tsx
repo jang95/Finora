@@ -5,6 +5,7 @@ import TransactionFormDialog from '@/components/transaction/TransactionFormDialo
 import DailyTransactionList from '@/components/transaction/DailyTransactionList'
 import LedgerCalendar from '@/components/transaction/LedgerCalendar'
 import LedgerSummary from '@/components/transaction/LedgerSummary'
+import MonthlyBalanceTable from '@/components/transaction/MonthlyBalanceTable'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getAccounts } from '@/services/assetService'
@@ -13,19 +14,21 @@ import {
   addTransaction,
   deleteTransaction,
   getMonthlyLedger,
+  getYearlyLedger,
   updateTransaction,
 } from '@/services/transactionService'
 import type { Account } from '@/types/asset'
 import type { Category } from '@/types/category'
-import type { MonthlyLedger, NewTransaction, Transaction } from '@/types/transaction'
+import type { MonthlyLedger, NewTransaction, Transaction, YearlyLedger } from '@/types/transaction'
 import { getThisMonth, getToday, toDateKey, type YearMonth } from '@/utils/yearMonth'
 
-// 가계부 보기 방식. 월별(연간 요약) 탭은 다음 단계에서 추가한다
-type ViewMode = 'list' | 'calendar'
+// 가계부 보기 방식. 목록·달력은 한 달 단위, 월별은 한 해의 12개월 요약
+type ViewMode = 'list' | 'calendar' | 'monthly'
 
 const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
   { value: 'list', label: '목록' },
   { value: 'calendar', label: '달력' },
+  { value: 'monthly', label: '월별' },
 ]
 
 function TransactionsPage() {
@@ -35,6 +38,8 @@ function TransactionsPage() {
 
   // 선택한 달의 요약 + 날짜별 거래
   const [ledger, setLedger] = useState<MonthlyLedger | null>(null)
+  // 선택한 해의 월별 요약 (월별 탭)
+  const [yearly, setYearly] = useState<YearlyLedger | null>(null)
   // 목록을 다시 불러오고 싶을 때 1씩 올린다. 아래 useEffect가 이 값이 바뀐 것을 보고 다시 실행된다.
   const [reloadKey, setReloadKey] = useState(0)
 
@@ -107,11 +112,33 @@ function TransactionsPage() {
     // 이때 이전 effect의 cleanup이 먼저 실행돼 ignore = true가 되므로, 늦게 온 이전 달 응답은 무시된다.
   }, [year, month, reloadKey])
 
+  // 월별 탭의 연간 데이터. 월별 탭을 볼 때만 불러온다 (목록·달력에서는 필요 없는 요청을 보내지 않게)
+  useEffect(() => {
+    if (view !== 'monthly') return
+    let ignore = false
+
+    getYearlyLedger(year).then((data) => {
+      if (!ignore) setYearly(data)
+    })
+
+    return () => {
+      ignore = true
+    }
+    // month는 넣지 않는다. 연간 데이터는 해가 바뀔 때만 달라진다
+  }, [view, year, reloadKey])
+
+  // 월별 표에서 달을 누르면: 그 달로 이동 + 목록 탭으로 전환
+  function openMonth(selectedMonth: number) {
+    setYearMonth({ year, month: selectedMonth })
+    setView('list')
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">가계부</h1>
-        <MonthNavigator value={yearMonth} onChange={setYearMonth} />
+        {/* 월별 탭에서는 한 해씩 이동한다 */}
+        <MonthNavigator value={yearMonth} onChange={setYearMonth} unit={view === 'monthly' ? 'year' : 'month'} />
       </div>
 
       {/* [Tabs] shadcn(Radix) 탭. value(지금 탭)는 우리 state가 쥐고, 탭을 누르면 onValueChange로 알려준다 (제어 컴포넌트).
@@ -133,7 +160,18 @@ function TransactionsPage() {
           </Button>
         </div>
 
-        {ledger === null ? (
+        {view === 'monthly' ? (
+          <TabsContent value="monthly" className="flex flex-col gap-6">
+            {yearly === null ? (
+              <p className="text-muted-foreground">불러오는 중...</p>
+            ) : (
+              <>
+                <LedgerSummary income={yearly.income} expense={yearly.expense} balance={yearly.balance} />
+                <MonthlyBalanceTable months={yearly.months} onSelectMonth={openMonth} />
+              </>
+            )}
+          </TabsContent>
+        ) : ledger === null ? (
           <p className="text-muted-foreground">불러오는 중...</p>
         ) : (
           <>

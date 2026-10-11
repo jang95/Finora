@@ -38,3 +38,19 @@ export interface MonthlyLedger {
   balance: number // 수입 - 지출 (음수면 지출이 더 많음)
   days: DailyTransactions[]
 }
+
+// 가계부 월별(연간) 화면 응답: 한 해 요약 + 1~12월 각각의 합계
+// Backend가 생기면 GET /api/transactions/yearly?year= 응답 형태가 된다.
+export interface YearlyLedger {
+  income: number
+  expense: number
+  balance: number
+  months: MonthlyBalance[] // 1월 ~ 12월, 12개
+}
+
+export interface MonthlyBalance {
+  month: number // 1~12
+  income: number
+  expense: number
+  balance: number
+}

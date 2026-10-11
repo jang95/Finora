@@ -1,7 +1,8 @@
 import { accountsMock } from '@/mocks/accounts'
 import { categoriesMock } from '@/mocks/categories'
 import { transactionsMock } from '@/mocks/transactions'
-import type { DailyTransactions, MonthlyLedger, NewTransaction, Transaction } from '@/types/transaction'
+import { getMonthlyTotals } from '@/services/statisticsService'
+import type { DailyTransactions, MonthlyLedger, NewTransaction, Transaction, YearlyLedger } from '@/types/transaction'
 
 // 월별 거래 목록 (최신 날짜가 위). month는 1~12.
 // 지금은 mock에서 걸러서 돌려주고, Backend가 생기면 GET /api/transactions?year=&month= 호출로 바꾼다.
@@ -105,4 +106,19 @@ function toTransaction(id: number, input: NewTransaction): Transaction {
 // ?.: 앞의 값이 undefined면 에러 없이 undefined를 돌려준다. ??: 앞이 undefined/null이면 뒤의 값을 쓴다.
 function findAccountName(accountId: number): string {
   return accountsMock.find((a) => a.id === accountId)?.name ?? ''
+}
+
+// 가계부 월별 탭: 한 해 요약 + 1~12월 합계. Backend가 생기면 GET /api/transactions/yearly?year= 호출로 바꾼다.
+export async function getYearlyLedger(year: number): Promise<YearlyLedger> {
+  // 12월부터 거꾸로 12개월 = 그해 1~12월 (통계 화면의 월별 합계 계산을 그대로 쓴다)
+  const totals = await getMonthlyTotals({ year, month: 12 }, 12)
+  const months = totals.map((t) => ({
+    month: t.month,
+    income: t.income,
+    expense: t.expense,
+    balance: t.income - t.expense,
+  }))
+  const income = sumBy(months, (m) => m.income)
+  const expense = sumBy(months, (m) => m.expense)
+  return { income, expense, balance: income - expense, months }
 }
