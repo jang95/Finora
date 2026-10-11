@@ -8,9 +8,14 @@
 
 /* Finora 전용 색상: text-income, text-expense 등으로 사용 */
 /* gain/loss: 투자 손익 (한국식: 상승 빨강, 하락 파랑). 가계부 수입/지출 색과 의미가 달라 따로 둔다 */
+/* chart-income/expense: 차트 막대용. 글자색(income/expense)과 따로 둔다.
+   초록과 빨강은 밝기가 비슷하면 적록 색각이상인 사람에게 같은 색으로 보인다.
+   그래서 차트용은 두 색의 밝기 차이를 크게 벌렸다 (라이트·다크 모두 초록이 밝고 빨강이 어두움). */
 @theme inline {
     --color-income: var(--income);
     --color-expense: var(--expense);
+    --color-chart-income: var(--chart-income);
+    --color-chart-expense: var(--chart-expense);
     --color-gain: var(--gain);
     --color-loss: var(--loss);
 }
@@ -95,6 +100,8 @@
     --expense: oklch(0.577 0.245 27.325);
     --gain: oklch(0.577 0.245 27.325);
     --loss: oklch(0.546 0.245 262.881);
+    --chart-income: oklch(0.64 0.16 150);
+    --chart-expense: oklch(0.48 0.19 27);
 }
 
 .dark {
@@ -102,6 +109,8 @@
     --expense: oklch(0.704 0.191 22.216);
     --gain: oklch(0.704 0.191 22.216);
     --loss: oklch(0.707 0.165 254.624);
+    --chart-income: oklch(0.66 0.16 150);
+    --chart-expense: oklch(0.54 0.21 27);
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.205 0 0);

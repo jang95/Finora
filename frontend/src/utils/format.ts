@@ -41,3 +41,21 @@ export function formatDate(date: string): string {
 export function formatPercent(value: number): string {
   return `${percentFormatter.format(value)}%`
 }
+
+// notation: 'compact' → 큰 수를 짧게. 'ko-KR'이면 만/억 단위를 쓴다. 차트 축처럼 자리가 좁은 곳에 쓴다.
+const compactMoneyFormatter = new Intl.NumberFormat('ko-KR', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+})
+
+// 3800000 → "380만", 52340000 → "5234만"
+export function formatMoneyCompact(amount: number): string {
+  return compactMoneyFormatter.format(amount)
+}
+
+const ratioFormatter = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 1 })
+
+// 비중 표시. 부호 없이 소수 첫째 자리까지. 35.4821 → "35.5%"
+export function formatRatio(value: number): string {
+  return `${ratioFormatter.format(value)}%`
+}
