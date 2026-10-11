@@ -6,3 +6,9 @@ export interface Category {
   name: string
   type: CategoryType
 }
+
+// 카테고리 추가 입력값. id는 Backend가 정한다.
+export interface NewCategory {
+  name: string
+  type: CategoryType
+}
