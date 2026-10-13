@@ -1,12 +1,13 @@
 # Finora 개인 금융관리 프로그램 개발 계획서
 
-> 기준일: 2026-10-12  
-> 현재 상태: Phase 2 완료 (화면 제작, 임시 데이터). 다음: Phase 3 (Backend + Database 기반)
+> 기준일: 2026-10-13  
+> 현재 상태: Phase 3 완료 (Backend + Database 기반). 다음: Phase 4 (회원가입 / 로그인 / 사용자 분리)
 
 ### 변경 이력
 
 | 날짜 | 내용 |
 |---|---|
+| 2026-10-13 | v5 — 개발용 PostgreSQL을 Docker로 실행 (결정 D12). Phase 3 완료 |
 | 2026-10-12 | v4 — 가계부 화면을 목록·달력·월별 탭으로 구성 (결정 D11). Phase 5 API 예시를 Phase 2 화면 응답 형태에 맞춤. Phase 2 완료 |
 | 2026-10-08 | v3 — 투자(주식)를 첫 배포 이후로 미룸. 가계부 + 계좌 기본 + 대시보드/통계/설정을 먼저 완성하고 첫 배포 (결정 D10) |
 | 2026-10-07 | v2 — 저장소 구조 확정(monorepo), 인증 방식 확정, 인증을 실제 데이터 저장보다 앞으로 이동, Backend+DB 단계 통합, 첫 배포 단계 추가, DB 설계 보강(금액 타입·이체·통화·자산 이력), 단계별 완료 기준 추가, 문서 관리 규칙 추가 |
@@ -493,7 +494,7 @@ Login → Dashboard → Transactions → Assets(계좌) → Statistics → Setti
 
 ---
 
-### Phase 3 — Backend + Database 기반
+### Phase 3 — Backend + Database 기반 ✅ 2026-10-13 완료
 
 v1의 Phase 3(Backend)과 Phase 4(DB)를 합쳤다. DB 없는 API는 확인할 것이 거의 없기 때문이다.
 
@@ -735,7 +736,7 @@ AI 분석 (Backend에서 호출)
 [완료] Phase 0   저장소 정리 (Git: jang95 계정, local 설정)
 [완료] Phase 1   Frontend 기본 구조 (React Router, PC 사이드 메뉴 / 모바일 하단 탭)
 [완료] Phase 2   화면 제작 (임시 데이터) — 로그인/가입, 대시보드(최근 거래), 가계부(등록·수정·삭제·이체, 목록·달력·월별 탭), 자산, 통계(Recharts), 설정(카테고리·비밀번호), 투자 "준비 중"
-[ ]    Phase 3   Backend + Database 기반
+[완료] Phase 3   Backend + DB 기반 — PostgreSQL(Docker), ASP.NET Core API, EF Core 첫 Migration(InviteCodes), 공통 오류 처리(ProblemDetails), Vite proxy, 설정 화면 서버 상태, xUnit 테스트
 [ ]    Phase 4   회원가입 / 로그인 / 사용자 분리
 [ ]    Phase 5   가계부 + 계좌 기본 완성
 [ ]    Phase 6   대시보드 / 통계 / 설정

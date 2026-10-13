@@ -13,6 +13,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <!-- EF Core 버전을 Design 패키지와 맞춘다. 지정하지 않으면 테스트 프로젝트는 Npgsql이 요구하는
+         낮은 버전(10.0.4)을 받아 버전 충돌 경고(MSB3277)가 난다. EF Core를 올릴 때 Design과 함께 올린다. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
   </ItemGroup>
 

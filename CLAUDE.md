@@ -13,7 +13,8 @@
 
 ## 구조
 
-- `frontend/` (React+TS+Vite), `backend/` (ASP.NET Core, .NET 10 — Phase 3에서 생성), `docs/`
+- `frontend/` (React+TS+Vite), `backend/` (ASP.NET Core, .NET 10 — 명령어·규칙은 `backend/CLAUDE.md`), `docs/`
+- 개발용 PostgreSQL: 저장소 루트에서 `docker compose up -d` (값은 `.env`, 예시는 `.env.example`)
 - Frontend 명령어 (`frontend/`에서): `npm run dev` / `npm run lint` / `npm run build`
 
 ## Git
