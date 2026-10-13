@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import CategorySection from '@/components/settings/CategorySection'
 import PasswordChangeCard from '@/components/settings/PasswordChangeCard'
+import ServerStatusCard from '@/components/settings/ServerStatusCard'
 import { addCategory, deleteCategory, getCategories, renameCategory } from '@/services/categoryService'
 import type { Category, CategoryType } from '@/types/category'
 
@@ -62,6 +63,8 @@ function SettingsPage() {
       )}
 
       <PasswordChangeCard />
+
+      <ServerStatusCard />
     </div>
   )
 }
