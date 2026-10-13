@@ -60,6 +60,9 @@ async function toApiError(response: Response): Promise<ApiError> {
   if (response.status >= 500 && problem.status === undefined) {
     return new ApiError(response.status, '서버에 연결할 수 없습니다. 잠시 후 다시 시도하세요.')
   }
-  const message = problem.detail ?? '요청을 처리하지 못했습니다. 잠시 후 다시 시도하세요.'
+  // 문구 우선순위: detail(로그인 실패 등) → 입력칸 오류의 첫 문구(이름 중복 등) → 기본 문구
+  // Object.values(errors).flat(): { Name: ['a'], Type: ['b'] } → ['a', 'b']
+  const firstFieldError = problem.errors ? Object.values(problem.errors).flat()[0] : undefined
+  const message = problem.detail ?? firstFieldError ?? '요청을 처리하지 못했습니다. 잠시 후 다시 시도하세요.'
   return new ApiError(response.status, message, problem.errors)
 }

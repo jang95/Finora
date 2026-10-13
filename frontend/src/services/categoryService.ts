@@ -1,52 +1,27 @@
-import { categoriesMock } from '@/mocks/categories'
-import { transactionsMock } from '@/mocks/transactions'
+import { apiRequest } from '@/services/api'
 import type { Category, NewCategory } from '@/types/category'
 
-// Backend가 생기면 GET /api/categories 호출로 바꾼다.
+// 카테고리 API (Phase 5). 규칙 검사(같은 종류 안 이름 중복, 내 카테고리인지)는 Backend가 한다.
+// 실패하면 ApiError를 던지고, message에 화면에 보여줄 문구가 들어 있다.
+
+// TanStack Query가 이 데이터를 캐시에 보관할 때 쓰는 이름표(query key).
+// 카테고리를 바꾼 뒤 이 이름표로 invalidate하면, 카테고리를 쓰는 화면이 모두 다시 불러온다.
+export const categoriesQueryKey = ['categories'] as const
+
 export async function getCategories(): Promise<Category[]> {
-  return categoriesMock
+  return apiRequest<Category[]>('/api/categories')
 }
 
-// 카테고리 추가. Backend가 생기면 POST /api/categories 호출로 바꾼다.
 export async function addCategory(input: NewCategory): Promise<Category> {
-  assertUniqueName(input)
-  // 자동 증가 id 흉내는 transactionService.addTransaction 설명 참고
-  const id = Math.max(0, ...categoriesMock.map((c) => c.id)) + 1
-  const created = { ...input, id }
-  categoriesMock.push(created)
-  return created
+  return apiRequest<Category>('/api/categories', { method: 'POST', body: input })
 }
 
 // 이름 변경. 종류(수입/지출)는 바꾸지 않는다 — 이미 쓴 거래의 의미가 달라지기 때문.
-// Backend가 생기면 PUT /api/categories/{id} 호출로 바꾼다.
 export async function renameCategory(id: number, name: string): Promise<Category> {
-  const category = categoriesMock.find((c) => c.id === id)
-  if (category === undefined) throw new Error('카테고리를 찾을 수 없습니다.')
-  assertUniqueName({ name, type: category.type }, id)
-
-  category.name = name
-  // mock에서는 거래가 카테고리 이름을 복사해 들고 있어서 같이 바꿔준다.
-  // (DB에서는 거래가 CategoryId만 가지고 이름은 조인으로 가져오므로 이 작업이 필요 없다)
-  for (const t of transactionsMock) {
-    if (t.categoryId === id) t.categoryName = name
-  }
-  return category
+  return apiRequest<Category>(`/api/categories/${id}`, { method: 'PUT', body: { name } })
 }
 
-// 삭제. 거래에서 쓰고 있는 카테고리는 지울 수 없다 (지우면 그 거래들이 "미분류"가 된다).
-// Backend가 생기면 DELETE /api/categories/{id} 호출로 바꾸고, 같은 검사를 Backend가 한다.
+// 삭제. 거래에서 쓰고 있는 카테고리는 Backend가 거절한다. (거래 API가 생기는 Phase 5-2부터)
 export async function deleteCategory(id: number): Promise<void> {
-  // some: 조건에 맞는 항목이 하나라도 있으면 true (C# LINQ의 Any)
-  if (transactionsMock.some((t) => t.categoryId === id)) {
-    throw new Error('거래에서 사용 중인 카테고리는 삭제할 수 없습니다.')
-  }
-  const index = categoriesMock.findIndex((c) => c.id === id)
-  if (index === -1) throw new Error('카테고리를 찾을 수 없습니다.')
-  categoriesMock.splice(index, 1)
-}
-
-// 같은 종류 안에서 이름이 겹치면 에러. exceptId: 이름 변경 시 자기 자신은 빼고 검사한다.
-function assertUniqueName({ name, type }: NewCategory, exceptId?: number) {
-  const duplicated = categoriesMock.some((c) => c.type === type && c.name === name && c.id !== exceptId)
-  if (duplicated) throw new Error('같은 이름의 카테고리가 이미 있습니다.')
+  await apiRequest<void>(`/api/categories/${id}`, { method: 'DELETE' })
 }

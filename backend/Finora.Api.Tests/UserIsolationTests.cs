@@ -13,8 +13,6 @@ namespace Finora.Api.Tests;
 // 사용자 소유 API가 늘어날 때마다(Phase 5~) 이 클래스에 같은 방식의 테스트를 추가한다.
 public class UserIsolationTests(PostgresApiFactory factory) : IClassFixture<PostgresApiFactory>
 {
-    private const string Password = "password1";
-
     private readonly WebApplicationFactory<Program> _server =
         factory.WithWebHostBuilder(b => b.UseSetting("Auth:LoginPermitPerMinute", "1000"));
 
@@ -87,29 +85,30 @@ public class UserIsolationTests(PostgresApiFactory factory) : IClassFixture<Post
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Categories_CannotRenameOrDeleteOtherUsersCategory_Returns404()
+    {
+        var clientA = await RegisterAndLoginAsync();
+        var clientB = await RegisterAndLoginAsync();
+        var categoryOfA = (await clientA.GetFromJsonAsync<List<CategoryDto>>("/api/categories"))![0];
+
+        // B가 A의 카테고리 Id로 이름 변경·삭제를 시도한다.
+        var rename = await clientB.PutAsJsonAsync($"/api/categories/{categoryOfA.Id}", new { name = "B가 바꿈" });
+        var delete = await clientB.DeleteAsync($"/api/categories/{categoryOfA.Id}");
+
+        // 403이 아니라 404: 남의 데이터가 있는지조차 알려주지 않는다. (계획서 9장)
+        Assert.Equal(HttpStatusCode.NotFound, rename.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, delete.StatusCode);
+        // A의 카테고리는 그대로 남아 있다.
+        var afterA = await clientA.GetFromJsonAsync<List<CategoryDto>>("/api/categories");
+        Assert.Contains(afterA!, c => c.Id == categoryOfA.Id && c.Name == categoryOfA.Name);
+    }
+
     // ---- 테스트 도우미 ----
 
-    private HttpClient CreateClient() =>
-        _server.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+    private HttpClient CreateClient() => _server.CreateHttpsClient();
 
-    // 초대코드 발급 → 가입 API → 로그인 API. 로그인 Cookie를 가진 client를 돌려준다.
-    private async Task<HttpClient> RegisterAndLoginAsync()
-    {
-        var email = $"user-{Guid.NewGuid():N}@example.com";
-        var inviteCode = $"TEST-{Guid.NewGuid():N}"[..14].ToUpperInvariant();
-        await using (var db = CreateDb())
-        {
-            db.InviteCodes.Add(new InviteCode { Code = inviteCode, CreatedAt = DateTime.UtcNow });
-            await db.SaveChangesAsync();
-        }
-
-        var client = CreateClient();
-        var register = await client.PostAsJsonAsync("/api/auth/register", new { inviteCode, email, password = Password });
-        Assert.Equal(HttpStatusCode.NoContent, register.StatusCode);
-        var login = await client.PostAsJsonAsync("/api/auth/login", new { email, password = Password });
-        Assert.Equal(HttpStatusCode.NoContent, login.StatusCode);
-        return client;
-    }
+    private Task<HttpClient> RegisterAndLoginAsync() => _server.RegisterAndLoginAsync();
 
     private async Task<string> UserIdOfAsync(HttpClient client)
     {
@@ -118,5 +117,5 @@ public class UserIsolationTests(PostgresApiFactory factory) : IClassFixture<Post
         return db.Users.Single(u => u.Email == me!["email"]).Id;
     }
 
-    private FinoraDbContext CreateDb() => _server.Services.CreateScope().ServiceProvider.GetRequiredService<FinoraDbContext>();
+    private FinoraDbContext CreateDb() => _server.CreateDb();
 }

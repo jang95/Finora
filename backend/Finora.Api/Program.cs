@@ -8,6 +8,7 @@ using Finora.Api.Controllers;
 using Finora.Api.Data;
 using Finora.Api.Data.Entities;
 using Finora.Api.Middleware;
+using Finora.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -46,6 +47,7 @@ builder.Services.AddIdentityCore<FinoraUser>(options =>
 
 // AddScoped: 요청마다 하나씩 만들어 Controller 생성자에 넣어 준다. (요청 하나 동안 같은 DbContext를 함께 씀)
 builder.Services.AddScoped<RegistrationService>();
+builder.Services.AddScoped<CategoryService>();
 
 // 현재 사용자 (FinoraDbContext의 Global Query Filter가 사용). HttpContextAccessor가 있어야 요청 정보를 읽을 수 있다.
 builder.Services.AddHttpContextAccessor();

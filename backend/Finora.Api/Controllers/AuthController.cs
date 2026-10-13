@@ -57,9 +57,6 @@ public class AuthController(RegistrationService registration, SignInManager<Fino
             return NoContent(); // 204: 성공, 돌려줄 내용 없음
 
         // 입력 검증 실패와 같은 400 형식(ValidationProblemDetails)으로 응답한다. 화면은 errors를 입력칸 옆에 보여 준다.
-        foreach (var (field, messages) in errors)
-            foreach (var message in messages)
-                ModelState.AddModelError(field, message);
-        return ValidationProblem(ModelState);
+        return this.ValidationErrors(errors);
     }
 }

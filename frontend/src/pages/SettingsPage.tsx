@@ -1,50 +1,52 @@
-import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import AccountCard from '@/components/settings/AccountCard'
 import CategorySection from '@/components/settings/CategorySection'
 import PasswordChangeCard from '@/components/settings/PasswordChangeCard'
 import ServerStatusCard from '@/components/settings/ServerStatusCard'
-import { addCategory, deleteCategory, getCategories, renameCategory } from '@/services/categoryService'
-import type { Category, CategoryType } from '@/types/category'
+import {
+  addCategory,
+  categoriesQueryKey,
+  deleteCategory,
+  getCategories,
+  renameCategory,
+} from '@/services/categoryService'
+import type { CategoryType } from '@/types/category'
 
 function SettingsPage() {
-  const [categories, setCategories] = useState<Category[] | null>(null)
-  // 다시 불러오기 방식은 TransactionsPage의 reloadKey 설명 참고
-  const [reloadKey, setReloadKey] = useState(0)
+  // [useQuery] 데이터 불러오기를 TanStack Query에 맡긴다. (설명은 lib/queryClient.ts)
+  //   queryKey: 캐시 이름표. 같은 이름표를 쓰는 화면끼리 데이터를 함께 쓴다 (가계부 입력 창의 카테고리 목록 등)
+  //   queryFn: 실제로 불러오는 함수 (service)
+  //   돌려주는 값: data(데이터, 오기 전에는 undefined), isPending(처음 불러오는 중), error(실패 시 오류)
+  // useEffect + ignore 플래그 + reloadKey로 하던 일이 이 안에 다 들어 있다.
+  const { data: categories, isPending, error } = useQuery({
+    queryKey: categoriesQueryKey,
+    queryFn: getCategories,
+  })
+  // useQueryClient: main.tsx에서 넘겨준 queryClient(캐시 저장소)를 꺼낸다.
+  const queryClient = useQueryClient()
 
-  // 데이터 불러오기 방식은 DashboardPage 설명 참고
-  useEffect(() => {
-    let ignore = false
-
-    getCategories().then((data) => {
-      // [...data]: 배열을 복사한다. mock 배열을 그대로 state에 넣으면 service가 그 배열을 바꿔도
-      //   React는 "같은 배열"이라 바뀐 줄 모르고 다시 그리지 않는다. 새 배열이어야 변경으로 인식한다.
-      if (!ignore) setCategories([...data])
-    })
-
-    return () => {
-      ignore = true
-    }
-  }, [reloadKey])
-
-  function reload() {
-    setReloadKey((prev) => prev + 1)
+  // 저장한 뒤 "카테고리 데이터가 낡았다"고 알린다 → useQuery가 자동으로 다시 불러와서 화면이 바뀐다.
+  // await: 다시 불러오기가 끝난 뒤에 입력칸을 비우도록 기다린다.
+  async function refresh() {
+    await queryClient.invalidateQueries({ queryKey: categoriesQueryKey })
   }
 
-  // 수입/지출 섹션이 같은 처리를 쓰도록 종류만 받아서 props 묶음을 만든다
+  // 수입/지출 섹션이 같은 처리를 쓰도록 종류만 받아서 props 묶음을 만든다.
+  // 실패하면 service가 ApiError를 던지고, CategorySection이 받아서 문구를 보여준다.
   function sectionProps(type: CategoryType) {
     return {
       categories: (categories ?? []).filter((c) => c.type === type),
       onAdd: async (name: string) => {
         await addCategory({ name, type })
-        reload()
+        await refresh()
       },
       onRename: async (id: number, name: string) => {
         await renameCategory(id, name)
-        reload()
+        await refresh()
       },
       onDelete: async (id: number) => {
         await deleteCategory(id)
-        reload()
+        await refresh()
       },
     }
   }
@@ -53,8 +55,12 @@ function SettingsPage() {
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">설정</h1>
 
-      {categories === null ? (
+      {isPending ? (
         <p className="text-muted-foreground">불러오는 중...</p>
+      ) : error ? (
+        <p role="alert" className="text-destructive">
+          {error.message}
+        </p>
       ) : (
         // PC에서는 수입/지출을 나란히, 모바일에서는 위아래로
         <div className="grid gap-6 md:grid-cols-2">
