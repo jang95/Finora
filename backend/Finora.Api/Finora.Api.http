@@ -17,3 +17,25 @@ Content-Type: application/json
 }
 
 ###
+
+# 로그인. 성공하면 204 + Cookie(finora.auth). REST Client는 받은 Cookie를 이후 요청에 자동으로 보낸다.
+POST {{Finora.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password1",
+  "rememberMe": true
+}
+
+###
+
+# 현재 사용자. 로그인 전이면 401
+GET {{Finora.Api_HostAddress}}/api/me
+
+###
+
+# 로그아웃
+POST {{Finora.Api_HostAddress}}/api/auth/logout
+
+###

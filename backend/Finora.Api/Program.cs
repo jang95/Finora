@@ -1,7 +1,9 @@
 // Program.cs = Backend의 시작점. 두 부분으로 나뉜다.
 //   1) builder.Services.Add...  : 앱이 쓸 기능(서비스)을 등록한다. (의존성 주입 컨테이너)
 //   2) app.Use... / app.Map...  : 요청이 들어왔을 때 거쳐 갈 순서(파이프라인)를 정한다.
+using System.Threading.RateLimiting;
 using Finora.Api.Auth;
+using Finora.Api.Controllers;
 using Finora.Api.Data;
 using Finora.Api.Data.Entities;
 using Finora.Api.Middleware;
@@ -55,6 +57,11 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;  // HTTPS로만 전송 (브라우저는 localhost는 예외로 허용)
     options.Cookie.SameSite = SameSiteMode.Strict;            // 다른 사이트에서 시작된 요청에는 Cookie를 보내지 않는다 (CSRF 방지)
 
+    // 로그인 유효 기간 14일. SlidingExpiration: 사용하는 동안 기간이 계속 연장된다. (14일 동안 안 쓰면 다시 로그인)
+    // "로그인 유지"를 체크하지 않으면 Cookie가 브라우저를 닫을 때 사라진다.
+    options.ExpireTimeSpan = TimeSpan.FromDays(14);
+    options.SlidingExpiration = true;
+
     // 기본 동작은 로그인 페이지로 이동(302)이지만, API는 상태 코드로만 알려 준다.
     // 화면 이동은 React가 401을 받고 처리한다.
     options.Events.OnRedirectToLogin = context =>
@@ -84,6 +91,19 @@ builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
+// 로그인 요청 횟수 제한: 같은 IP에서 1분에 N회까지 (기본 10회). 넘으면 429 Too Many Requests.
+// 계정 잠금(5회 실패)은 한 계정을 보호하고, 이 제한은 여러 계정을 번갈아 시도하는 공격을 늦춘다.
+// 테스트에서 값을 바꿀 수 있게 설정(Auth:LoginPermitPerMinute)에서 읽는다.
+var loginPermitPerMinute = builder.Configuration.GetValue("Auth:LoginPermitPerMinute", 10);
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    // Partition = 따로 세는 단위. IP 주소별로 횟수를 센다.
+    options.AddPolicy(AuthController.LoginRateLimitPolicy, context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = loginPermitPerMinute, Window = TimeSpan.FromMinutes(1) }));
+});
+
 var app = builder.Build();
 
 // 명령어 모드: "dotnet run --project Finora.Api -- invite create" 처럼 실행하면 웹 서버를 띄우지 않고 명령만 처리하고 끝낸다.
@@ -107,6 +127,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 // 순서가 중요하다: 먼저 Cookie로 "누구인지" 확인(Authentication)하고, 그다음 "허용되는지" 판단(Authorization)한다.
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
