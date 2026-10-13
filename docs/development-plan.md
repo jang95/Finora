@@ -1,12 +1,13 @@
 # Finora 개인 금융관리 프로그램 개발 계획서
 
 > 기준일: 2026-10-13  
-> 현재 상태: Phase 3 완료 (Backend + Database 기반). 다음: Phase 4 (회원가입 / 로그인 / 사용자 분리)
+> 현재 상태: Phase 4 완료 (회원가입 / 로그인 / 사용자 분리). 다음: Phase 5 (가계부 + 계좌 기본 완성)
 
 ### 변경 이력
 
 | 날짜 | 내용 |
 |---|---|
+| 2026-10-13 | v6 — DB 테스트는 Testcontainers (결정 D13), 초대코드는 서버 명령어로 발급 (결정 D14), Categories를 Phase 4에서 먼저 생성 (결정 D15). Phase 4 완료 |
 | 2026-10-13 | v5 — 개발용 PostgreSQL을 Docker로 실행 (결정 D12). Phase 3 완료 |
 | 2026-10-12 | v4 — 가계부 화면을 목록·달력·월별 탭으로 구성 (결정 D11). Phase 5 API 예시를 Phase 2 화면 응답 형태에 맞춤. Phase 2 완료 |
 | 2026-10-08 | v3 — 투자(주식)를 첫 배포 이후로 미룸. 가계부 + 계좌 기본 + 대시보드/통계/설정을 먼저 완성하고 첫 배포 (결정 D10) |
@@ -742,7 +743,7 @@ AI 분석 (Backend에서 호출)
 [완료] Phase 1   Frontend 기본 구조 (React Router, PC 사이드 메뉴 / 모바일 하단 탭)
 [완료] Phase 2   화면 제작 (임시 데이터) — 로그인/가입, 대시보드(최근 거래), 가계부(등록·수정·삭제·이체, 목록·달력·월별 탭), 자산, 통계(Recharts), 설정(카테고리·비밀번호), 투자 "준비 중"
 [완료] Phase 3   Backend + DB 기반 — PostgreSQL(Docker), ASP.NET Core API, EF Core 첫 Migration(InviteCodes), 공통 오류 처리(ProblemDetails), Vite proxy, 설정 화면 서버 상태, xUnit 테스트
-[ ]    Phase 4   회원가입 / 로그인 / 사용자 분리
+[완료] Phase 4   회원가입 / 로그인 / 사용자 분리 — Identity + Cookie 인증(5회 실패 잠금, 로그인 요청 횟수 제한), 초대코드 발급 명령어·가입 API, 로그인 유지, GET /api/me, Global Query Filter, Categories(가입 시 기본 카테고리, 조회 API), Testcontainers 사용자 분리 테스트, 로그인·가입 화면 연결, 로그인 안 하면 로그인 화면으로 이동
 [ ]    Phase 5   가계부 + 계좌 기본 완성
 [ ]    Phase 6   대시보드 / 통계 / 설정
 [ ]    Phase 7   첫 배포
