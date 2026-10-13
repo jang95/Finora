@@ -1,0 +1,33 @@
+# 개발용 PostgreSQL 컨테이너 정의.
+# compose.yaml은 "어떤 컨테이너를 어떤 설정으로 띄울지"를 적어 두는 파일이다.
+# 실행: docker compose up -d   (-d = 백그라운드 실행)
+# 중지: docker compose down    (데이터는 아래 volume에 남는다)
+#
+# 비밀번호 등 값은 같은 폴더의 .env 파일에서 읽는다. (.env는 커밋하지 않음, .env.example 참고)
+
+services:
+  db:
+    image: postgres:18
+    container_name: finora-db
+    restart: unless-stopped
+    environment:
+      # ${이름}은 .env 파일의 값으로 바뀐다. 값이 없으면 오류를 내고 멈춘다(:?).
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    ports:
+      # "내 PC 포트:컨테이너 포트". 127.0.0.1을 붙여 이 PC에서만 접속되게 한다.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # volume = 컨테이너를 지워도 남는 저장 공간. DB 데이터가 여기 저장된다.
+      # postgres 18부터는 데이터 경로가 /var/lib/postgresql 이다.
+      - finora-db-data:/var/lib/postgresql
+    healthcheck:
+      # DB가 접속을 받을 준비가 됐는지 주기적으로 확인한다.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  finora-db-data:
