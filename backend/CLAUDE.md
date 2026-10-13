@@ -16,6 +16,7 @@ ASP.NET Core Web API (.NET 10) + EF Core + PostgreSQL. 구조는 `docs/developme
 - 테스트: `dotnet test`
 - Migration 추가: `dotnet ef migrations add <Name> --project Finora.Api --output-dir Data/Migrations`
 - DB 적용: `dotnet ef database update --project Finora.Api`
+- 초대코드 발급: `dotnet run --project Finora.Api -- invite create` (결정 D14. 출력된 코드는 어디에도 기록하지 않는다)
 
 ## 규칙
 

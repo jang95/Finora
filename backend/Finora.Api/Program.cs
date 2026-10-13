@@ -1,6 +1,7 @@
 // Program.cs = Backend의 시작점. 두 부분으로 나뉜다.
 //   1) builder.Services.Add...  : 앱이 쓸 기능(서비스)을 등록한다. (의존성 주입 컨테이너)
 //   2) app.Use... / app.Map...  : 요청이 들어왔을 때 거쳐 갈 순서(파이프라인)를 정한다.
+using Finora.Api.Auth;
 using Finora.Api.Data;
 using Finora.Api.Data.Entities;
 using Finora.Api.Middleware;
@@ -78,6 +79,13 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 var app = builder.Build();
+
+// 명령어 모드: "dotnet run --project Finora.Api -- invite create" 처럼 실행하면 웹 서버를 띄우지 않고 명령만 처리하고 끝낸다.
+if (args is ["invite", ..])
+{
+    Environment.ExitCode = await InviteCommand.RunAsync(app.Services, args);
+    return;
+}
 
 // 파이프라인 맨 앞에 둔다. 뒤 단계 어디서 예외가 나도 여기서 잡힌다.
 app.UseExceptionHandler();
