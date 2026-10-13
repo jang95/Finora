@@ -1,6 +1,7 @@
 // Program.cs = Backend의 시작점. 두 부분으로 나뉜다.
 //   1) builder.Services.Add...  : 앱이 쓸 기능(서비스)을 등록한다. (의존성 주입 컨테이너)
 //   2) app.Use... / app.Map...  : 요청이 들어왔을 때 거쳐 갈 순서(파이프라인)를 정한다.
+using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Finora.Api.Auth;
 using Finora.Api.Controllers;
@@ -46,6 +47,10 @@ builder.Services.AddIdentityCore<FinoraUser>(options =>
 // AddScoped: 요청마다 하나씩 만들어 Controller 생성자에 넣어 준다. (요청 하나 동안 같은 DbContext를 함께 씀)
 builder.Services.AddScoped<RegistrationService>();
 
+// 현재 사용자 (FinoraDbContext의 Global Query Filter가 사용). HttpContextAccessor가 있어야 요청 정보를 읽을 수 있다.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<CurrentUser>();
+
 // 인증 방식 = Identity Cookie. 로그인하면 브라우저에 인증 Cookie가 저장되고, 이후 요청마다 자동으로 함께 전송된다.
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddIdentityCookies();
@@ -82,7 +87,9 @@ builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
 // Controllers/ 폴더의 Controller 클래스들을 사용한다.
-builder.Services.AddControllers();
+// JsonStringEnumConverter: enum을 숫자(0, 1) 대신 "Income"/"Expense" 문자열로 주고받는다. (Frontend 타입과 맞춤)
+builder.Services.AddControllers()
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 // API 명세(OpenAPI 문서)를 만든다. 개발 중 /openapi/v1.json 에서 확인할 수 있다.
 builder.Services.AddOpenApi();
 

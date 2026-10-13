@@ -46,6 +46,10 @@ public class RegistrationService(FinoraDbContext db, UserManager<FinoraUser> use
         if (claimed == 0)
             return Error(nameof(RegisterRequest.InviteCode), InvalidInviteMessage); // Commit하지 않았으므로 사용자 생성도 취소된다
 
+        // 기본 카테고리 생성. 가입 중에는 아직 로그인 전이라, UserId를 방금 만든 사용자로 직접 지정한다.
+        db.Categories.AddRange(DefaultCategories.CreateFor(user.Id));
+        await db.SaveChangesAsync(cancellationToken);
+
         await transaction.CommitAsync(cancellationToken);
         return [];
     }

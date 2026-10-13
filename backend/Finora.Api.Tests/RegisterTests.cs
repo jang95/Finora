@@ -33,6 +33,24 @@ public class RegisterTests(PostgresApiFactory factory) : IClassFixture<PostgresA
     }
 
     [Fact]
+    public async Task Register_CreatesDefaultCategoriesHiddenByQueryFilter()
+    {
+        var email = NewEmail();
+
+        await RegisterAsync(await CreateInviteAsync(), email, "password1");
+
+        await using var db = CreateDb();
+        var userId = (await db.Users.SingleAsync(u => u.Email == email)).Id;
+        // 테스트 코드는 로그인한 요청이 아니라서 현재 사용자가 없다 → Global Query Filter 때문에 아무것도 안 보여야 한다.
+        Assert.False(await db.Categories.AnyAsync(c => c.UserId == userId));
+        // 필터를 끄고 보면 기본 카테고리가 만들어져 있다.
+        var categories = await db.Categories.IgnoreQueryFilters().Where(c => c.UserId == userId).ToListAsync();
+        Assert.Equal(DefaultCategories.CreateFor(userId).Count, categories.Count);
+        Assert.Contains(categories, c => c.Name == "식비" && c.Type == CategoryType.Expense);
+        Assert.Contains(categories, c => c.Name == "급여" && c.Type == CategoryType.Income);
+    }
+
+    [Fact]
     public async Task Register_WithUnknownInvite_Returns400AndCreatesNoUser()
     {
         var email = NewEmail();

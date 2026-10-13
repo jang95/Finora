@@ -23,4 +23,4 @@ ASP.NET Core Web API (.NET 10) + EF Core + PostgreSQL. 구조는 `docs/developme
 - 오류 응답은 ProblemDetails 형식. 처리되지 않은 예외는 `Middleware/GlobalExceptionHandler`가 500으로 바꾸고, 예외 내용은 로그에만 남긴다.
 - Controller는 Entity를 그대로 반환하지 않고 DTO로 변환한다.
 - 테스트는 WebApplicationFactory로 메모리 서버를 띄운다. DB가 필요 없으면 `FinoraApiFactory`(연결되지 않는 가짜 DB), 필요하면 `PostgresApiFactory`(Testcontainers로 테스트용 PostgreSQL 컨테이너, 결정 D13). **`dotnet test`는 Docker가 켜져 있어야 한다.**
-- `dotnet watch`로 서버를 띄운 채 `dotnet test`를 하면 `Finora.Api.exe` 잠김으로 빌드가 실패한다. 서버를 끄거나 `--artifacts-path`로 다른 폴더에 빌드한다.
+- `dotnet watch`로 서버를 띄운 채 `dotnet test`를 하면 `Finora.Api.exe` 잠김으로 빌드가 실패한다. 서버를 끄거나 `--artifacts-path`로 다른 폴더에 빌드한다. `dotnet ef`는 `--configuration Release`를 붙이면 잠기지 않는 bin/Release에 빌드한다.
