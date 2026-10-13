@@ -5,3 +5,15 @@ GET {{Finora.Api_HostAddress}}/api/health
 Accept: application/json
 
 ###
+
+# 회원가입. inviteCode에는 "dotnet run --project Finora.Api -- invite create"로 발급한 코드를 넣는다. (실제 코드는 커밋하지 않는다)
+POST {{Finora.Api_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "inviteCode": "XXXX-XXXX-XXXX",
+  "email": "test@example.com",
+  "password": "password1"
+}
+
+###

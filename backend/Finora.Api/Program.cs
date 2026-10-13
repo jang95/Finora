@@ -34,9 +34,15 @@ builder.Services.AddIdentityCore<FinoraUser>(options =>
         options.Lockout.MaxFailedAccessAttempts = 5;
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
         options.Lockout.AllowedForNewUsers = true;
+
+        // 이메일을 로그인 ID로 쓰므로 중복 가입을 막는다.
+        options.User.RequireUniqueEmail = true;
     })
     .AddEntityFrameworkStores<FinoraDbContext>() // 사용자 정보를 FinoraDbContext(AspNetUsers 테이블)에 저장
     .AddSignInManager();                         // 로그인/로그아웃 처리(SignInManager)
+
+// AddScoped: 요청마다 하나씩 만들어 Controller 생성자에 넣어 준다. (요청 하나 동안 같은 DbContext를 함께 씀)
+builder.Services.AddScoped<RegistrationService>();
 
 // 인증 방식 = Identity Cookie. 로그인하면 브라우저에 인증 Cookie가 저장되고, 이후 요청마다 자동으로 함께 전송된다.
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)

@@ -522,9 +522,9 @@ v1의 Phase 3(Backend)과 Phase 4(DB)를 합쳤다. DB 없는 API는 확인할 �
 작업:
 1. Identity 테이블 (`FinoraUser`, `IdentityDbContext`), InviteCodes ↔ Users 연결
 2. Cookie 인증 설정 (HttpOnly·Secure·SameSite=Strict, API는 401 응답, 5회 실패 잠금)
-3. 초대코드 회원가입 API + 초대코드 발급 명령어 (결정 D14)
+3. 초대코드 발급 명령어 (결정 D14) + 초대코드 회원가입 API (`POST /api/auth/register`), Testcontainers 테스트 기반 (결정 D13)
 4. 로그인 / 로그아웃 / 로그인 유지, 현재 사용자 확인 (`GET /api/me`), 로그인 요청 횟수 제한
-5. 사용자 분리 기반: 현재 사용자 서비스, Global Query Filter, Categories 테이블·가입 시 기본 카테고리·조회 API (결정 D15), Testcontainers 분리 테스트 (결정 D13)
+5. 사용자 분리 기반: 현재 사용자 서비스, Global Query Filter, Categories 테이블·가입 시 기본 카테고리·조회 API (결정 D15), 사용자 분리 자동 테스트
 6. Frontend: 로그인·가입 화면 연결, 로그인 안 된 상태에서 페이지 접근 시 로그인 화면으로 이동
 
 완료 기준:
