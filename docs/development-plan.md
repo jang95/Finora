@@ -595,6 +595,7 @@ GET    /api/dashboard           총자산, 이번 달 수입/지출, 최근 거�
 - 10장 배포 방식 결정 → 결정 기록(3장)에 추가
 - HTTPS, 운영 환경변수
 - DB 자동 백업 + 복원 테스트
+- React 빌드 파일(wwwroot) 제공: 기본값이 "로그인 필요"(fallback policy)라서 `UseStaticFiles`는 `UseAuthorization`보다 앞에 두고, SPA fallback(`MapFallbackToFile`)에는 `AllowAnonymous`를 붙인다. 안 하면 로그인 화면 자체가 401이 된다
 
 완료 기준:
 - Android 폰에서 외부 네트워크로 접속·로그인 가능

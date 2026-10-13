@@ -24,15 +24,17 @@ public class HealthAndErrorTests(FinoraApiFactory factory) : IClassFixture<Finor
         Assert.Equal("unavailable", body.GetProperty("database").GetString());
     }
 
+    // 로그인 전에는 없는 주소도 404가 아니라 401이다. (fallback policy는 주소가 없는 요청에도 적용된다)
+    // 어떤 주소가 존재하는지 로그인 전에는 알려주지 않는다. 로그인 상태의 404 확인은 로그인 API가 생긴 뒤 추가한다.
     [Fact]
-    public async Task UnknownRoute_Returns404ProblemDetailsWithTraceId()
+    public async Task UnknownRoute_WhenNotLoggedIn_Returns401ProblemDetailsWithTraceId()
     {
         var response = await _client.GetAsync("/api/does-not-exist");
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(404, body.GetProperty("status").GetInt32());
+        Assert.Equal(401, body.GetProperty("status").GetInt32());
         Assert.False(string.IsNullOrEmpty(body.GetProperty("traceId").GetString()));
     }
 }

@@ -1,4 +1,5 @@
 using Finora.Api.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Finora.Api.Controllers;
@@ -6,8 +7,10 @@ namespace Finora.Api.Controllers;
 // [ApiController]: 이 클래스가 Web API용 Controller임을 표시한다. (입력 검증 실패 시 자동으로 400 응답 등)
 // [Route("api/health")]: 이 Controller가 받는 주소.
 // 생성자 매개변수 db는 Program.cs의 AddDbContext 등록 덕분에 자동으로 들어온다. (의존성 주입)
+// [AllowAnonymous]: 로그인 없이 호출할 수 있다. (기본값은 로그인 필요, Program.cs의 fallback policy)
 [ApiController]
 [Route("api/health")]
+[AllowAnonymous]
 public class HealthController(FinoraDbContext db) : ControllerBase
 {
     // GET /api/health — 서버와 DB 연결 상태를 확인한다.
