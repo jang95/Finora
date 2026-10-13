@@ -16,6 +16,6 @@ public class InviteCode
     // "?"는 null 허용. 아직 사용하지 않은 코드는 값이 없다.
     public DateTime? UsedAt { get; set; }
 
-    // Identity 사용자 Id(문자열). Users 테이블과의 외래 키는 Phase 4에서 연결한다.
+    // 이 코드로 가입한 사용자 Id (AspNetUsers.Id 외래 키, FinoraDbContext 참고)
     public string? UsedByUserId { get; set; }
 }
