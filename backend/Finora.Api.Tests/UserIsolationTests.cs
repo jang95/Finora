@@ -170,7 +170,7 @@ public class UserIsolationTests(PostgresApiFactory factory) : IClassFixture<Post
     }
 
     [Fact]
-    public async Task Dashboard_ShowsOnlyOwnTotalsAndRecentTransactions()
+    public async Task Dashboard_ShowsOnlyOwnRecentTransactions()
     {
         var clientA = await RegisterAndLoginAsync();
         var clientB = await RegisterAndLoginAsync();
@@ -183,9 +183,7 @@ public class UserIsolationTests(PostgresApiFactory factory) : IClassFixture<Post
 
         // 최근 거래 목록은 금액·메모가 그대로 보이므로 특히 남의 것이 섞이면 안 된다
         Assert.Equal(1, dashboardA.GetProperty("recentTransactions").GetArrayLength());
-        Assert.Equal(-10000m, dashboardA.GetProperty("totalAssets").GetDecimal());
         Assert.Equal(0, dashboardB.GetProperty("recentTransactions").GetArrayLength());
-        Assert.Equal(0m, dashboardB.GetProperty("totalAssets").GetDecimal());
     }
 
     // ---- 테스트 도우미 ----

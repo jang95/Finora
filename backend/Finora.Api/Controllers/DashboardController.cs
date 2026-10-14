@@ -9,7 +9,7 @@ namespace Finora.Api.Controllers;
 [Route("api/dashboard")]
 public class DashboardController(StatisticsService statistics) : ControllerBase
 {
-    // GET /api/dashboard — 가계부 기준 총자산, 이번 달 수입/지출, 최근 거래
+    // GET /api/dashboard — 최근 거래 (기간별 수입·지출·총자산은 GET /api/statistics/summary)
     [HttpGet]
     public Task<DashboardResponse> Get(CancellationToken cancellationToken) =>
         statistics.GetDashboardAsync(cancellationToken);

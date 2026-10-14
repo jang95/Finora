@@ -7,7 +7,7 @@ namespace Finora.Api.DTOs;
 public record PeriodSummaryResponse(DateOnly From, DateOnly To, decimal Income, decimal Expense, decimal Balance, decimal TotalAssets);
 
 // GET /api/dashboard — Frontend types/dashboard.ts의 DashboardSummary와 같은 모양.
-// TotalAssets: 가계부 기준 총자산 (거래 전체의 수입 − 지출, 결정 D17). 계좌 기준 총자산은 Phase 8에서 추가한다.
-// MonthlyIncome / MonthlyExpense: 이번 달(한국 시간, 결정 D18) 1일~말일 합계. 가계부 월 합계와 같은 값이다.
+// 기간과 상관없는 대시보드 정보만 담는다. 기간별 수입·지출·총자산은 GET /api/statistics/summary를 쓴다.
 // RecentTransactions: 최근 거래 몇 건 (최신 날짜가 위, 같은 날은 나중에 등록한 것이 위)
-public record DashboardResponse(decimal TotalAssets, decimal MonthlyIncome, decimal MonthlyExpense, List<TransactionResponse> RecentTransactions);
+// 계좌 기준 총자산은 Phase 8에서 추가한다. (결정 D17)
+public record DashboardResponse(List<TransactionResponse> RecentTransactions);

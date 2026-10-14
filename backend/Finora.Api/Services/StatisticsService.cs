@@ -7,8 +7,7 @@ namespace Finora.Api.Services;
 
 // 대시보드·통계용 기간 집계. (계획서 Phase 6, 결정 D17)
 // db.Transactions는 Global Query Filter로 항상 "현재 사용자 것"만 보이므로 남의 거래가 합계에 섞이지 않는다.
-// TimeProvider time: "오늘"을 정할 때 쓰는 시계 (KoreaTime 참고). Program.cs에서 TimeProvider.System을 등록한다.
-public class StatisticsService(FinoraDbContext db, TimeProvider time)
+public class StatisticsService(FinoraDbContext db)
 {
     // 대시보드에 보여줄 최근 거래 수
     private const int RecentCount = 5;
@@ -45,20 +44,9 @@ public class StatisticsService(FinoraDbContext db, TimeProvider time)
             new PeriodSummaryResponse(from, to, income, expense, income - expense, totalAssets));
     }
 
-    // 대시보드: 가계부 기준 총자산, 이번 달 수입/지출, 최근 거래
+    // 대시보드: 최근 거래 (기간별 숫자는 GetSummaryAsync)
     public async Task<DashboardResponse> GetDashboardAsync(CancellationToken cancellationToken)
     {
-        // 이번 달 1일 ~ 다음 달 1일 "전"까지 (가계부 월 조회 GetMonthlyAsync와 같은 범위)
-        var today = KoreaTime.Today(time);
-        var monthStart = new DateOnly(today.Year, today.Month, 1);
-        var nextMonthStart = monthStart.AddMonths(1);
-        var thisMonth = db.Transactions.Where(t => t.Date >= monthStart && t.Date < nextMonthStart);
-
-        var income = await SumAsync(thisMonth, TransactionType.Income, cancellationToken);
-        var expense = await SumAsync(thisMonth, TransactionType.Expense, cancellationToken);
-        // 총자산은 날짜 제한 없이 거래 전체 (결정 D17 "거래 전체의 수입 − 지출 누적")
-        var totalAssets = await SumTotalAssetsAsync(db.Transactions, cancellationToken);
-
         // Take(n) → SQL의 LIMIT n. 정렬한 뒤 앞에서 n건만 가져온다.
         var recent = await db.Transactions
             .OrderByDescending(t => t.Date)
@@ -67,7 +55,7 @@ public class StatisticsService(FinoraDbContext db, TimeProvider time)
             .Select(TransactionService.ToResponse)
             .ToListAsync(cancellationToken);
 
-        return new DashboardResponse(totalAssets, income, expense, recent);
+        return new DashboardResponse(recent);
     }
 
     // ---- 내부 도우미 ----
