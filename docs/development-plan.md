@@ -79,6 +79,7 @@ Finora는 가족·지인 몇 명(10명 이하)이 사용할 수 있는 **개인 
 | 스타일 | Tailwind CSS v4 + shadcn/ui (Radix, lucide 아이콘), 글꼴 Pretendard | 완료 |
 | 서버 데이터 관리 | TanStack Query | Phase 5 |
 | 차트 | Recharts | Phase 2 (통계 화면) |
+| 달력 (기간 직접 지정) | shadcn Calendar (react-day-picker, date-fns) | Phase 6 |
 | Backend | ASP.NET Core Web API (.NET 10 LTS, C#) | Phase 3 |
 | ORM | Entity Framework Core + Npgsql | Phase 3 |
 | Database | PostgreSQL | Phase 3 |
