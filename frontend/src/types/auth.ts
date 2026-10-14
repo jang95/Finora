@@ -17,3 +17,9 @@ export interface RegisterInput {
   email: string
   password: string
 }
+
+// 비밀번호 변경 입력값 (POST /api/me/password)
+export interface ChangePasswordInput {
+  currentPassword: string
+  newPassword: string
+}

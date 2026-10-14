@@ -1,20 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
+import FieldError from '@/components/common/FieldError'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ApiError } from '@/services/api'
 import { register } from '@/services/authService'
-
-// 서버 오류 문구 한 줄. 입력칸의 aria-describedby와 id로 연결한다. (aria 설명은 아래 비밀번호 확인 칸 참고)
-function FieldError({ id, messages }: { id: string; messages?: string[] }) {
-  if (!messages?.length) return null
-  return (
-    <p id={id} className="text-sm text-destructive">
-      {messages.join(' ')}
-    </p>
-  )
-}
 
 function RegisterPage() {
   const navigate = useNavigate()
