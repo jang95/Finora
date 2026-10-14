@@ -403,7 +403,8 @@ UserId = A인 데이터만 조회/수정/삭제
 - 비밀번호는 Identity의 Hash로 저장 (평문 저장 금지)
 - Cookie는 `HttpOnly`, `Secure`, `SameSite=Strict`
 - 로그인 실패 반복 시 계정 잠금 (Identity Lockout)
-- 로그인 API에 요청 횟수 제한 (ASP.NET Core Rate Limiting)
+- 로그인 API에 요청 횟수 제한 (ASP.NET Core Rate Limiting). 비밀번호 변경 API도 같은 제한 (현재 비밀번호 반복 추측 방지)
+- 비밀번호를 바꾸면 다른 기기의 로그인은 끊긴다 (SecurityStamp, 1분마다 확인). 바꾼 기기는 유지
 
 **데이터 분리**
 - UserId는 **항상 인증 정보에서** 가져온다. 요청 Body/URL의 UserId는 무시한다

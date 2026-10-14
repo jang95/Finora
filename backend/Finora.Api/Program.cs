@@ -47,6 +47,7 @@ builder.Services.AddIdentityCore<FinoraUser>(options =>
 
 // AddScoped: 요청마다 하나씩 만들어 Controller 생성자에 넣어 준다. (요청 하나 동안 같은 DbContext를 함께 씀)
 builder.Services.AddScoped<RegistrationService>();
+builder.Services.AddScoped<PasswordService>();
 builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<TransactionService>();
 builder.Services.AddScoped<StatisticsService>();
@@ -87,6 +88,11 @@ builder.Services.ConfigureApplicationCookie(options =>
         return Task.CompletedTask;
     };
 });
+
+// Cookie가 아직 유효한지(SecurityStamp가 DB 값과 같은지) 1분마다 확인한다. 기본값은 30분.
+// 비밀번호를 바꾸면 SecurityStamp가 바뀌어, 다른 기기에 남은 예전 로그인이 1분 안에 끊긴다.
+// (확인할 때마다 DB를 한 번 조회하지만 사용자가 10명 이하라 부담이 없다)
+builder.Services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.FromMinutes(1));
 
 // 기본값을 "로그인 필요"로 둔다 (fallback policy).
 // 새 API에 [Authorize]를 깜빡해도 자동으로 막힌다. 로그인 없이 열어야 하는 곳만 [AllowAnonymous]를 붙인다.

@@ -65,13 +65,12 @@ public class RegistrationService(FinoraDbContext db, UserManager<FinoraUser> use
             .ToDictionary(g => g.Key, g => g.Select(x => x.Message).ToArray());
 
     // (string Field, string Message) = 이름 붙은 튜플. 작은 값 두 개를 클래스 없이 묶어 돌려준다.
+    // PasswordRules.Message(e) is { } message: 결과가 null이 아니면 message라는 이름으로 받아서 쓴다 (패턴 매칭)
     private static (string Field, string Message) ToFieldError(IdentityError e) => e.Code switch
     {
-        "PasswordTooShort" => (nameof(RegisterRequest.Password), "비밀번호는 8자 이상이어야 합니다."),
-        "PasswordRequiresDigit" => (nameof(RegisterRequest.Password), "비밀번호에 숫자를 1개 이상 넣으세요."),
+        _ when PasswordRules.Message(e) is { } message => (nameof(RegisterRequest.Password), message),
         "DuplicateUserName" or "DuplicateEmail" => (nameof(RegisterRequest.Email), "이미 가입된 이메일입니다."),
         "InvalidUserName" or "InvalidEmail" => (nameof(RegisterRequest.Email), "이메일 형식이 올바르지 않습니다."),
-        _ when e.Code.StartsWith("Password") => (nameof(RegisterRequest.Password), e.Description),
         _ => (string.Empty, e.Description),
     };
 }
