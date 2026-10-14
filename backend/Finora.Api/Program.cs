@@ -10,6 +10,7 @@ using Finora.Api.Data.Entities;
 using Finora.Api.Middleware;
 using Finora.Api.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -130,6 +131,20 @@ builder.Services.AddRateLimiter(options =>
         _ => new FixedWindowRateLimiterOptions { PermitLimit = loginPermitPerMinute, Window = TimeSpan.FromMinutes(1) }));
 });
 
+// Data Protection 키: 로그인 Cookie를 암호화하는 키. 기본으로는 앱이 도는 곳의 사용자 폴더에 저장된다.
+// Docker 컨테이너 안에 두면 배포(컨테이너 새로 만들기)할 때마다 키가 사라져서 모두 로그아웃된다.
+// 운영에서는 설정 DataProtection:KeysPath로 volume 폴더를 지정해 키를 남긴다. (compose.prod.yaml)
+// SetApplicationName: 키를 이 앱 이름으로 묶는다 (폴더 위치가 바뀌어도 같은 키를 쓰게)
+// 시작 로그의 "No XML encryptor configured" 경고: 키 파일 자체는 암호화하지 않고 저장한다는 뜻이다.
+//   키 파일은 우리 노트북의 Docker volume 안에만 있으므로 받아들인다 (암호화하려면 별도 인증서·키 관리 서비스가 필요).
+var keysPath = builder.Configuration["DataProtection:KeysPath"];
+if (!string.IsNullOrEmpty(keysPath))
+{
+    builder.Services.AddDataProtection()
+        .SetApplicationName("Finora")
+        .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+}
+
 // 프록시(Tailscale Funnel, 결정 D20) 뒤에서 실제 사용자 IP 알아내기.
 // 프록시를 거치면 앱이 보는 접속 IP는 항상 프록시의 IP 하나다. 그대로 두면 로그인 요청 횟수 제한이 모든 사용자를 한 명으로 센다.
 // 프록시는 원래 IP를 X-Forwarded-For 헤더에 적어 보내므로, 그 값을 접속 IP로 바꿔 쓴다. (UseForwardedHeaders)
@@ -153,6 +168,12 @@ var app = builder.Build();
 if (args is ["invite", ..])
 {
     Environment.ExitCode = await InviteCommand.RunAsync(app.Services, args);
+    return;
+}
+// "dotnet Finora.Api.dll migrate" — DB 구조(Migration) 적용 후 끝낸다. 운영 배포에서 쓴다 (MigrateCommand 참고)
+if (args is ["migrate"])
+{
+    Environment.ExitCode = await MigrateCommand.RunAsync(app.Services);
     return;
 }
 
