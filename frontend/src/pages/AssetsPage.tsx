@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import ComingSoon from '@/components/common/ComingSoon'
 import MoneyText from '@/components/common/MoneyText'
+import { FEATURES } from '@/config/features'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { getAssetSummary } from '@/services/assetService'
 import type { AccountType, AssetSummary } from '@/types/asset'
@@ -14,7 +16,26 @@ const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   Other: '기타',
 }
 
+// 계좌 기능이 꺼져 있으면 "준비 중"을 보여준다. 아래 계좌 화면 코드는 Phase 8에서 다시 쓰려고 남겨 둔다. (결정 D16)
+// 스위치 검사를 AccountAssets 안에서 하지 않고 바깥 컴포넌트로 나눈 이유:
+//   React Hook(useState 등)은 조건문보다 먼저, 항상 같은 순서로 호출해야 한다. return을 Hook보다 앞에 둘 수 없다.
 function AssetsPage() {
+  if (!FEATURES.accounts) {
+    return (
+      <div className="flex flex-col gap-6">
+        <h1 className="text-2xl font-bold">자산</h1>
+        <ComingSoon
+          title="자산(계좌) 관리는 준비 중입니다."
+          description="가계부 기능을 먼저 제공하고, 계좌·이체 기능은 이후에 추가될 예정입니다."
+        />
+      </div>
+    )
+  }
+  return <AccountAssets />
+}
+
+// 계좌 목록 + 총자산 (Phase 2 임시 데이터 화면. Phase 8에서 실제 API로 연결)
+function AccountAssets() {
   const [summary, setSummary] = useState<AssetSummary | null>(null)
 
   // 데이터 불러오기 방식은 DashboardPage 설명 참고

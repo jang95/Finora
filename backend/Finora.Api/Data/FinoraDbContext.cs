@@ -16,6 +16,7 @@ public class FinoraDbContext(DbContextOptions<FinoraDbContext> options, CurrentU
     // DbSet<T> = 테이블 하나. db.InviteCodes.Where(...) 처럼 조회한다.
     public DbSet<InviteCode> InviteCodes => Set<InviteCode>();
     public DbSet<Category> Categories => Set<Category>();
+    public DbSet<Transaction> Transactions => Set<Transaction>();
 
     // Global Query Filter에서 쓰는 현재 사용자 Id.
     // DbContext의 속성으로 두어야 EF Core가 쿼리를 실행할 때마다 그 시점의 값을 읽는다. (모델은 한 번만 만들어지고 재사용되므로)
@@ -56,6 +57,29 @@ public class FinoraDbContext(DbContextOptions<FinoraDbContext> options, CurrentU
             // Global Query Filter: 이 테이블을 조회할 때마다 "WHERE UserId = 현재 사용자" 조건이 자동으로 붙는다.
             // 코드에서 Where를 깜빡해도 다른 사람 데이터가 나오지 않는다. 로그인 전(null)이면 아무것도 조회되지 않는다.
             // 꼭 필요한 곳(테스트, 관리 작업)에서만 IgnoreQueryFilters()로 끌 수 있다.
+            e.HasQueryFilter(x => x.UserId == CurrentUserId);
+        });
+
+        modelBuilder.Entity<Transaction>(e =>
+        {
+            // numeric(18,2): 전체 18자리 중 소수 2자리. float/double은 쓰지 않는다 (결정 D4)
+            e.Property(x => x.Amount).HasPrecision(18, 2);
+            e.Property(x => x.Type).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Memo).HasMaxLength(100);
+            // 월별 조회는 항상 "내 거래 중 이 기간"이라 (UserId, Date) 인덱스로 빨리 찾는다.
+            e.HasIndex(x => new { x.UserId, x.Date });
+            e.HasOne<FinoraUser>()
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // 거래에서 쓰는 카테고리는 지울 수 없다. CategoryService도 먼저 확인하지만, DB가 최종으로 막는다.
+            // Restrict가 아니라 NoAction인 이유: 사용자를 지우면 거래·카테고리가 함께 Cascade로 지워지는데,
+            // Restrict는 행마다 즉시 검사해서 카테고리가 먼저 지워지는 순간 실패할 수 있다. NoAction은 문장이 끝날 때 검사한다.
+            e.HasOne(x => x.Category)
+                .WithMany()
+                .HasForeignKey(x => x.CategoryId)
+                .OnDelete(DeleteBehavior.NoAction);
+
             e.HasQueryFilter(x => x.UserId == CurrentUserId);
         });
     }

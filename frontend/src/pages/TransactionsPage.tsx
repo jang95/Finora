@@ -1,5 +1,6 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import MonthNavigator from '@/components/common/MonthNavigator'
 import TransactionFormDialog from '@/components/transaction/TransactionFormDialog'
 import DailyTransactionList from '@/components/transaction/DailyTransactionList'
@@ -8,18 +9,20 @@ import LedgerSummary from '@/components/transaction/LedgerSummary'
 import MonthlyBalanceTable from '@/components/transaction/MonthlyBalanceTable'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { FEATURES } from '@/config/features'
 import { getAccounts } from '@/services/assetService'
-import { getCategories } from '@/services/categoryService'
+import { categoriesQueryKey, getCategories } from '@/services/categoryService'
 import {
   addTransaction,
   deleteTransaction,
   getMonthlyLedger,
   getYearlyLedger,
+  monthlyLedgerQueryKey,
+  transactionsQueryKey,
   updateTransaction,
+  yearlyLedgerQueryKey,
 } from '@/services/transactionService'
-import type { Account } from '@/types/asset'
-import type { Category } from '@/types/category'
-import type { MonthlyLedger, NewTransaction, Transaction, YearlyLedger } from '@/types/transaction'
+import type { NewTransaction, Transaction } from '@/types/transaction'
 import { getThisMonth, getToday, toDateKey, type YearMonth } from '@/utils/yearMonth'
 
 // 가계부 보기 방식. 목록·달력은 한 달 단위, 월별은 한 해의 12개월 요약
@@ -35,17 +38,30 @@ function TransactionsPage() {
   // useState(getThisMonth): 함수 자체를 넘기면 처음 한 번만 실행된다 (getThisMonth()로 넘기면 그릴 때마다 실행됨)
   const [yearMonth, setYearMonth] = useState<YearMonth>(getThisMonth)
   const { year, month } = yearMonth
-
-  // 선택한 달의 요약 + 날짜별 거래
-  const [ledger, setLedger] = useState<MonthlyLedger | null>(null)
-  // 선택한 해의 월별 요약 (월별 탭)
-  const [yearly, setYearly] = useState<YearlyLedger | null>(null)
-  // 목록을 다시 불러오고 싶을 때 1씩 올린다. 아래 useEffect가 이 값이 바뀐 것을 보고 다시 실행된다.
-  const [reloadKey, setReloadKey] = useState(0)
-
-  const [categories, setCategories] = useState<Category[]>([])
-  const [accounts, setAccounts] = useState<Account[]>([])
   const [view, setView] = useState<ViewMode>('list')
+
+  // [useQuery] 데이터 불러오기 (설명은 lib/queryClient.ts, SettingsPage 참고)
+  // 이름표에 year, month가 들어 있어서, 월을 바꾸면 이름표가 달라져 그 달 데이터를 새로 불러온다.
+  // 한 번 본 달은 캐시에 남아 있어서 다시 가면 바로 보인다.
+  const monthlyQuery = useQuery({
+    queryKey: monthlyLedgerQueryKey(year, month),
+    queryFn: () => getMonthlyLedger(year, month),
+  })
+  // 월별 탭의 연간 데이터. enabled: 월별 탭을 볼 때만 불러온다 (목록·달력에서는 필요 없는 요청을 보내지 않게)
+  const yearlyQuery = useQuery({
+    queryKey: yearlyLedgerQueryKey(year),
+    queryFn: () => getYearlyLedger(year),
+    enabled: view === 'monthly',
+  })
+  // 입력 창의 카테고리 목록. 설정 화면과 같은 이름표라 캐시를 함께 쓴다 (설정에서 바꾸면 여기도 바뀐다)
+  const { data: categories = [] } = useQuery({ queryKey: categoriesQueryKey, queryFn: getCategories })
+  // 계좌 목록은 계좌 기능이 켜졌을 때만 (결정 D16)
+  const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: getAccounts, enabled: FEATURES.accounts })
+  const queryClient = useQueryClient()
+
+  const ledger = monthlyQuery.data
+  const yearly = yearlyQuery.data
+
   // 달력에서 고른 날짜. 처음엔 오늘
   const [selectedDate, setSelectedDate] = useState<string | null>(getToday)
   // 다른 달로 넘어가면 고른 날짜는 그 달에 없으므로 "안 고름"으로 본다 (파생 값. 월 이동 때 따로 지우지 않아도 된다)
@@ -63,38 +79,40 @@ function TransactionsPage() {
   // 팝업에서 수정 중인 거래. null이면 새로 등록.
   // 닫을 때 이 값을 null로 되돌리지 않는다. 닫히는 애니메이션 동안 제목이 "거래 등록"으로 바뀌어 보이기 때문.
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
-
-  // 등록 폼의 선택 목록. 월이 바뀌어도 그대로이므로 처음 한 번만 불러온다 (의존성 배열 [])
-  useEffect(() => {
-    // Promise.all: 두 요청을 동시에 보내고 둘 다 끝나면 결과를 배열로 받는다
-    Promise.all([getCategories(), getAccounts()]).then(([categoryList, accountList]) => {
-      setCategories(categoryList)
-      setAccounts(accountList)
-    })
-  }, [])
+  // 입력 창을 열 때마다 1씩 올려서 key로 넘긴다. [key] React는 key가 바뀌면 그 컴포넌트를 버리고 새로 만든다.
+  // 이게 없으면 닫히는 애니메이션 도중에 다시 열 때 이전 입력 창이 재사용되어, 지난번 입력값(메모 등)이 남아 있었다.
+  const [formKey, setFormKey] = useState(0)
 
   function openAddForm() {
     setEditingTransaction(null)
+    setFormKey((prev) => prev + 1)
     setIsFormOpen(true)
   }
 
   function openEditForm(transaction: Transaction) {
     setEditingTransaction(transaction)
+    setFormKey((prev) => prev + 1)
     setIsFormOpen(true)
   }
 
+  // 거래가 바뀌면 월별·연간 데이터가 모두 낡은 것이 된다. 'transactions'로 시작하는 이름표를 한 번에 invalidate한다.
+  async function refreshLedger() {
+    await queryClient.invalidateQueries({ queryKey: transactionsQueryKey })
+  }
+
+  // 실패하면 service가 ApiError를 던지고, 입력 창(TransactionFormDialog)이 받아서 문구를 보여준다. 팝업은 닫지 않는다.
   async function handleSubmit(input: NewTransaction) {
     const saved =
       editingTransaction === null
         ? await addTransaction(input)
         : await updateTransaction(editingTransaction.id, input)
     setIsFormOpen(false)
-    // 저장한 거래가 있는 달로 이동하고 목록을 다시 불러온다 (날짜를 다른 달로 고친 경우도 포함)
+    // 저장한 거래가 있는 달로 이동한다 (날짜를 다른 달로 고친 경우도 포함)
     const [savedYear, savedMonth] = saved.date.split('-').map(Number)
     setYearMonth({ year: savedYear, month: savedMonth })
     // 달력에서도 저장한 날짜가 선택되게 한다
     setSelectedDate(saved.date)
-    setReloadKey((prev) => prev + 1)
+    await refreshLedger()
   }
 
   async function handleDelete() {
@@ -102,43 +120,17 @@ function TransactionsPage() {
     if (editingTransaction === null) return
     await deleteTransaction(editingTransaction.id)
     setIsFormOpen(false)
-    setReloadKey((prev) => prev + 1)
+    await refreshLedger()
   }
-
-  useEffect(() => {
-    let ignore = false
-
-    getMonthlyLedger(year, month).then((data) => {
-      if (!ignore) setLedger(data)
-    })
-
-    return () => {
-      ignore = true
-    }
-    // year, month가 바뀌면(월 이동) 다시 불러온다.
-    // 이때 이전 effect의 cleanup이 먼저 실행돼 ignore = true가 되므로, 늦게 온 이전 달 응답은 무시된다.
-  }, [year, month, reloadKey])
-
-  // 월별 탭의 연간 데이터. 월별 탭을 볼 때만 불러온다 (목록·달력에서는 필요 없는 요청을 보내지 않게)
-  useEffect(() => {
-    if (view !== 'monthly') return
-    let ignore = false
-
-    getYearlyLedger(year).then((data) => {
-      if (!ignore) setYearly(data)
-    })
-
-    return () => {
-      ignore = true
-    }
-    // month는 넣지 않는다. 연간 데이터는 해가 바뀔 때만 달라진다
-  }, [view, year, reloadKey])
 
   // 월별 표에서 달을 누르면: 그 달로 이동 + 목록 탭으로 전환
   function openMonth(selectedMonth: number) {
     setYearMonth({ year, month: selectedMonth })
     setView('list')
   }
+
+  // 불러오기 실패 문구 (서버 꺼짐 등)
+  const loadError = view === 'monthly' ? yearlyQuery.error : monthlyQuery.error
 
   return (
     <div className="flex flex-col gap-6">
@@ -167,9 +159,13 @@ function TransactionsPage() {
           </Button>
         </div>
 
-        {view === 'monthly' ? (
+        {loadError ? (
+          <p role="alert" className="text-destructive">
+            {loadError.message}
+          </p>
+        ) : view === 'monthly' ? (
           <TabsContent value="monthly" className="flex flex-col gap-6">
-            {yearly === null ? (
+            {yearly === undefined ? (
               <p className="text-muted-foreground">불러오는 중...</p>
             ) : (
               <>
@@ -178,7 +174,7 @@ function TransactionsPage() {
               </>
             )}
           </TabsContent>
-        ) : ledger === null ? (
+        ) : ledger === undefined ? (
           <p className="text-muted-foreground">불러오는 중...</p>
         ) : (
           <>
@@ -210,6 +206,7 @@ function TransactionsPage() {
       </Tabs>
 
       <TransactionFormDialog
+        key={formKey}
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
         transaction={editingTransaction}

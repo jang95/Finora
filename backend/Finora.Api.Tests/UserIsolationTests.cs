@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Finora.Api.Data;
 using Finora.Api.Data.Entities;
 using Microsoft.AspNetCore.Hosting;
@@ -102,6 +103,49 @@ public class UserIsolationTests(PostgresApiFactory factory) : IClassFixture<Post
         // A의 카테고리는 그대로 남아 있다.
         var afterA = await clientA.GetFromJsonAsync<List<CategoryDto>>("/api/categories");
         Assert.Contains(afterA!, c => c.Id == categoryOfA.Id && c.Name == categoryOfA.Name);
+    }
+
+    [Fact]
+    public async Task Transactions_OtherUserCannotSeeUpdateOrDelete()
+    {
+        var clientA = await RegisterAndLoginAsync();
+        var clientB = await RegisterAndLoginAsync();
+        var foodA = (await clientA.GetFromJsonAsync<List<CategoryDto>>("/api/categories"))!.Single(c => c.Name == "식비").Id;
+        var foodB = (await clientB.GetFromJsonAsync<List<CategoryDto>>("/api/categories"))!.Single(c => c.Name == "식비").Id;
+        var created = await clientA.PostAsJsonAsync("/api/transactions",
+            new { date = "2026-10-14", type = "Expense", categoryId = foodA, amount = 10000 });
+        var transactionId = (await created.Content.ReadFromJsonAsync<Dictionary<string, JsonElement>>())!["id"].GetInt32();
+
+        // B: 같은 달을 조회해도 A의 거래는 없다
+        var monthlyB = await clientB.GetFromJsonAsync<JsonElement>("/api/transactions/monthly?year=2026&month=10");
+        // B: A의 거래 Id로 수정·삭제 → 404
+        var update = await clientB.PutAsJsonAsync($"/api/transactions/{transactionId}",
+            new { date = "2026-10-14", type = "Expense", categoryId = foodB, amount = 1 });
+        var delete = await clientB.DeleteAsync($"/api/transactions/{transactionId}");
+
+        Assert.Equal(0, monthlyB.GetProperty("days").GetArrayLength());
+        Assert.Equal(0m, monthlyB.GetProperty("expense").GetDecimal());
+        Assert.Equal(HttpStatusCode.NotFound, update.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, delete.StatusCode);
+        // A의 거래는 그대로
+        var monthlyA = await clientA.GetFromJsonAsync<JsonElement>("/api/transactions/monthly?year=2026&month=10");
+        Assert.Equal(10000m, monthlyA.GetProperty("expense").GetDecimal());
+    }
+
+    [Fact]
+    public async Task Transactions_CannotUseOtherUsersCategory()
+    {
+        var clientA = await RegisterAndLoginAsync();
+        var clientB = await RegisterAndLoginAsync();
+        var foodA = (await clientA.GetFromJsonAsync<List<CategoryDto>>("/api/categories"))!.Single(c => c.Name == "식비").Id;
+
+        // B가 A의 카테고리 Id를 넣어 거래를 등록하려고 한다 → 내 카테고리가 아니므로 거절
+        var response = await clientB.PostAsJsonAsync("/api/transactions",
+            new { date = "2026-10-14", type = "Expense", categoryId = foodA, amount = 10000 });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(body.GetProperty("errors").TryGetProperty("CategoryId", out _));
     }
 
     // ---- 테스트 도우미 ----

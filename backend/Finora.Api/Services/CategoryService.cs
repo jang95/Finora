@@ -78,7 +78,10 @@ public class CategoryService(FinoraDbContext db, CurrentUser currentUser)
         if (category is null)
             return ServiceResult<bool>.NotFound();
 
-        // TODO(Phase 5-2): Transactions 테이블이 생기면 "거래에서 사용 중이면 삭제 불가"를 여기서 검사한다.
+        // 거래에서 쓰는 카테고리는 지울 수 없다. 지우면 그 거래들이 "미분류"가 되어 통계가 틀어진다.
+        if (await db.Transactions.AnyAsync(t => t.CategoryId == id, cancellationToken))
+            return ServiceResult<bool>.Conflict("거래에서 사용 중인 카테고리는 삭제할 수 없습니다.");
+
         db.Categories.Remove(category);
         await db.SaveChangesAsync(cancellationToken);
         return ServiceResult<bool>.Ok(true);

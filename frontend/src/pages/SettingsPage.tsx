@@ -10,6 +10,7 @@ import {
   getCategories,
   renameCategory,
 } from '@/services/categoryService'
+import { transactionsQueryKey } from '@/services/transactionService'
 import type { CategoryType } from '@/types/category'
 
 function SettingsPage() {
@@ -29,6 +30,8 @@ function SettingsPage() {
   // await: 다시 불러오기가 끝난 뒤에 입력칸을 비우도록 기다린다.
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: categoriesQueryKey })
+    // 가계부에 표시되는 카테고리 이름도 바뀌었을 수 있으므로 거래 데이터도 다시 불러오게 한다.
+    await queryClient.invalidateQueries({ queryKey: transactionsQueryKey })
   }
 
   // 수입/지출 섹션이 같은 처리를 쓰도록 종류만 받아서 props 묶음을 만든다.

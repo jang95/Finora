@@ -48,6 +48,7 @@ builder.Services.AddIdentityCore<FinoraUser>(options =>
 // AddScoped: 요청마다 하나씩 만들어 Controller 생성자에 넣어 준다. (요청 하나 동안 같은 DbContext를 함께 씀)
 builder.Services.AddScoped<RegistrationService>();
 builder.Services.AddScoped<CategoryService>();
+builder.Services.AddScoped<TransactionService>();
 
 // 현재 사용자 (FinoraDbContext의 Global Query Filter가 사용). HttpContextAccessor가 있어야 요청 정보를 읽을 수 있다.
 builder.Services.AddHttpContextAccessor();
@@ -91,7 +92,12 @@ builder.Services.AddAuthorizationBuilder()
 // Controllers/ 폴더의 Controller 클래스들을 사용한다.
 // JsonStringEnumConverter: enum을 숫자(0, 1) 대신 "Income"/"Expense" 문자열로 주고받는다. (Frontend 타입과 맞춤)
 builder.Services.AddControllers()
-    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        // 값이 null인 속성은 JSON에 넣지 않는다. Frontend 타입의 선택 속성(memo?: string)과 맞춘다 (null이 아니라 "없음")
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+    });
 // API 명세(OpenAPI 문서)를 만든다. 개발 중 /openapi/v1.json 에서 확인할 수 있다.
 builder.Services.AddOpenApi();
 

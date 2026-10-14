@@ -22,6 +22,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { FEATURES } from '@/config/features'
 import type { Account } from '@/types/asset'
 import type { Category } from '@/types/category'
 import type { NewTransaction, Transaction, TransactionType } from '@/types/transaction'
@@ -35,6 +36,9 @@ const TYPE_OPTIONS: { value: TransactionType; label: string }[] = [
   { value: 'Income', label: '수입' },
   { value: 'Transfer', label: '이체' },
 ]
+
+// 계좌 기능이 꺼져 있으면 이체 버튼을 숨긴다. 이체 코드는 Phase 8에서 다시 쓰려고 남겨 둔다. (결정 D16)
+const VISIBLE_TYPE_OPTIONS = FEATURES.accounts ? TYPE_OPTIONS : TYPE_OPTIONS.filter((o) => o.value !== 'Transfer')
 
 interface TransactionFormDialogProps {
   // 열림/닫힘은 부모(페이지)가 state로 가진다. 닫기 버튼·바깥 클릭·Esc를 누르면 onOpenChange(false)가 호출된다.
@@ -61,7 +65,9 @@ function TransactionFormDialog({ open, onOpenChange, ...formProps }: Transaction
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{isEdit ? '거래 수정' : '거래 등록'}</DialogTitle>
-          <DialogDescription>수입·지출 또는 내 계좌 간 이체 내역을 입력하세요.</DialogDescription>
+          <DialogDescription>
+            {FEATURES.accounts ? '수입·지출 또는 내 계좌 간 이체 내역을 입력하세요.' : '수입·지출 내역을 입력하세요.'}
+          </DialogDescription>
         </DialogHeader>
         {/* DialogContent는 닫히면 화면에서 사라진다(unmount). 그래서 폼 state를 아래 컴포넌트에 두면
             다시 열 때마다 새로 만들어져, 등록이면 빈 칸으로 / 수정이면 그 거래 값으로 다시 채워진다. */}
@@ -99,11 +105,13 @@ function TransactionForm({
   //   등록이면(transaction이 null) → undefined → '' / 이체라 categoryId가 없으면 → undefined → ''
   //   둘 다 있으면 → 3 → '3' (toString(): 숫자를 문자열로)
   const [categoryId, setCategoryId] = useState(transaction?.categoryId?.toString() ?? '')
-  const [accountId, setAccountId] = useState(transaction?.accountId.toString() ?? '')
+  const [accountId, setAccountId] = useState(transaction?.accountId?.toString() ?? '')
   const [toAccountId, setToAccountId] = useState(transaction?.toAccountId?.toString() ?? '')
   const [amount, setAmount] = useState(transaction?.amount.toString() ?? '')
   const [memo, setMemo] = useState(transaction?.memo ?? '')
   const [isSaving, setIsSaving] = useState(false)
+  // 서버가 거절했을 때의 문구 (금액 범위, 카테고리 없음 등). 팝업은 닫지 않고 문구를 보여준다.
+  const [error, setError] = useState('')
 
   const isTransfer = type === 'Transfer'
   // 지금 고른 종류(수입/지출)의 카테고리만 보여준다 (파생 값). 이체는 카테고리가 없다.
@@ -128,12 +136,14 @@ function TransactionForm({
     if (isSameAccount) return
     // 저장 중에는 버튼을 꺼서(disabled) 두 번 눌러 같은 거래가 두 번 저장되는 것을 막는다.
     // 실제 API는 응답까지 시간이 걸려서, 그 사이 사용자가 다시 누를 수 있기 때문이다.
+    setError('')
     setIsSaving(true)
     try {
       await onSubmit({
         date,
         type,
-        accountId: Number(accountId),
+        // 계좌 기능이 꺼져 있으면 계좌를 보내지 않는다 (선택 항목, 결정 D16)
+        accountId: FEATURES.accounts ? Number(accountId) : undefined,
         // 이체면 받는 계좌만, 수입/지출이면 카테고리만 보낸다. 화면에 안 보이는 칸의 값이 섞여 저장되지 않게 한다.
         toAccountId: isTransfer ? Number(toAccountId) : undefined,
         categoryId: isTransfer ? undefined : Number(categoryId),
@@ -142,6 +152,8 @@ function TransactionForm({
         // trim(): 앞뒤 공백 제거. 비어 있으면 memo를 보내지 않는다(undefined)
         memo: memo.trim() || undefined,
       })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '저장하지 못했습니다.')
     } finally {
       // finally: 성공·실패와 상관없이 마지막에 실행된다 (C#의 finally와 같다)
       setIsSaving(false)
@@ -149,9 +161,12 @@ function TransactionForm({
   }
 
   async function handleDelete() {
+    setError('')
     setIsSaving(true)
     try {
       await onDelete()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '삭제하지 못했습니다.')
     } finally {
       setIsSaving(false)
     }
@@ -159,9 +174,10 @@ function TransactionForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      {/* 지출/수입/이체 선택. aria-pressed: 화면낭독기에 "눌린 상태"인지 알린다 */}
-      <div className="grid grid-cols-3 gap-2">
-        {TYPE_OPTIONS.map((option) => (
+      {/* 지출/수입(/이체) 선택. aria-pressed: 화면낭독기에 "눌린 상태"인지 알린다
+          Tailwind는 코드에 적힌 클래스 이름 그대로만 CSS를 만든다. 그래서 `grid-cols-${n}`처럼 조립하지 않고 두 이름을 모두 적는다. */}
+      <div className={VISIBLE_TYPE_OPTIONS.length === 3 ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-2 gap-2'}>
+        {VISIBLE_TYPE_OPTIONS.map((option) => (
           <Button
             key={option.value}
             type="button"
@@ -223,11 +239,14 @@ function TransactionForm({
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
-        {/* 이체면 "보내는 계좌", 아니면 "계좌" */}
-        <Label htmlFor="account">{isTransfer ? '보내는 계좌' : '계좌'}</Label>
-        <AccountSelect id="account" accounts={accounts} value={accountId} onChange={setAccountId} />
-      </div>
+      {/* 계좌 선택은 계좌 기능이 켜졌을 때만 (결정 D16) */}
+      {FEATURES.accounts && (
+        <div className="flex flex-col gap-2">
+          {/* 이체면 "보내는 계좌", 아니면 "계좌" */}
+          <Label htmlFor="account">{isTransfer ? '보내는 계좌' : '계좌'}</Label>
+          <AccountSelect id="account" accounts={accounts} value={accountId} onChange={setAccountId} />
+        </div>
+      )}
 
       {isTransfer && (
         <div className="flex flex-col gap-2">
@@ -260,6 +279,12 @@ function TransactionForm({
           onChange={(event) => setMemo(event.target.value)}
         />
       </div>
+
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
 
       <DialogFooter>
         {/* 수정일 때만 삭제 버튼. sm:mr-auto: PC에서 왼쪽 끝으로 밀어 저장 버튼과 떨어뜨린다 (실수로 누르지 않게) */}

@@ -42,7 +42,8 @@ public class CategoriesController(CategoryService categories) : ControllerBase
     {
         var result = await categories.DeleteAsync(id, cancellationToken);
         if (result.IsNotFound) return NotFound();
-        if (result.Errors is not null) return this.ValidationErrors(result.Errors);
+        // 409 Conflict: 요청은 맞지만 지금 상태(거래에서 사용 중)에서는 할 수 없다. 문구는 detail로 보낸다.
+        if (result.ConflictMessage is not null) return Problem(detail: result.ConflictMessage, statusCode: StatusCodes.Status409Conflict);
         return NoContent();
     }
 }

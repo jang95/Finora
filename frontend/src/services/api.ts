@@ -26,7 +26,12 @@ export class ApiError extends Error {
 // fetch를 감싼다. body가 있으면 JSON으로 보낸다. 실패 응답이면 ApiError를 던진다.
 // <T>: 성공 응답 본문의 타입. 호출하는 쪽에서 apiRequest<Me>('/api/me')처럼 정한다.
 // Cookie는 같은 주소(same-origin)라 브라우저가 자동으로 보낸다. (계획서 2장)
-export async function apiRequest<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
+// redirectOnUnauthorized: 401(로그인 만료 등)을 받으면 로그인 화면으로 보낼지. 기본은 보낸다.
+//   로그인·가입·로그인 확인(authService)처럼 401이 "정상적인 결과"인 요청만 false로 부른다.
+export async function apiRequest<T>(
+  path: string,
+  options: { method?: string; body?: unknown; redirectOnUnauthorized?: boolean } = {},
+): Promise<T> {
   let response: Response
   try {
     response = await fetch(path, {
@@ -43,6 +48,12 @@ export async function apiRequest<T>(path: string, options: { method?: string; bo
     // 204 No Content는 본문이 없다. response.json()을 부르면 오류가 나므로 건너뛴다.
     if (response.status === 204) return undefined as T
     return (await response.json()) as T
+  }
+
+  // 쓰는 도중 로그인이 만료되면(14일 미사용, 다른 곳에서 로그아웃 등) 어떤 API든 401이 온다. 로그인 화면으로 보낸다.
+  // 페이지를 새로 불러오는 방식(location.assign)이라 메모리에 남은 데이터(TanStack Query 캐시)도 함께 사라진다.
+  if (response.status === 401 && options.redirectOnUnauthorized !== false) {
+    window.location.assign('/login')
   }
 
   throw await toApiError(response)

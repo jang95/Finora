@@ -7,8 +7,9 @@ export interface Transaction {
   id: number
   date: string // 거래일 'YYYY-MM-DD' (한국 기준 날짜, 시간 없음)
   type: TransactionType
-  accountId: number
-  accountName: string
+  // 계좌는 선택 항목. 계좌 기능(Phase 8) 전까지는 항상 없다 (결정 D16)
+  accountId?: number
+  accountName?: string
   // ?: 선택 속성. 이체일 때만 받는 계좌가 있고, 이체일 때는 카테고리가 없다.
   toAccountId?: number
   toAccountName?: string
