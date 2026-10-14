@@ -63,6 +63,17 @@ export function customPeriod(from: string, to: string): Period {
   return from <= to ? { unit: 'custom', from, to } : { unit: 'custom', from: to, to: from }
 }
 
+// 월별 그래프에 그릴 범위. 선택한 기간이 끝나는 달까지 최근 months개월 (1일 ~ 말일).
+// 연간이면 그해 1~12월. 예) 2026년 10월 14일(일간) → 2026-05-01 ~ 2026-10-31
+export function getMonthlyChartRange(period: Period, months = 6): { from: string; to: string } {
+  if (period.unit === 'year') return { from: period.from, to: period.to }
+  const end = parseDate(period.to)
+  return {
+    from: dateToKey(new Date(end.getFullYear(), end.getMonth() - (months - 1), 1)),
+    to: dateToKey(new Date(end.getFullYear(), end.getMonth() + 1, 0)),
+  }
+}
+
 // 화면에 보여줄 기간 이름
 export function formatPeriod({ unit, from, to }: Period): string {
   const f = parseDate(from)

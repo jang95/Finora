@@ -1,4 +1,4 @@
-// 통계 화면 응답. 합계·비율은 Backend가 decimal로 계산해서 내려준다 (결정 D4)
+// 통계 API 응답 (Backend DTOs/StatisticsResponses.cs와 같은 모양). 합계·비율은 Backend가 decimal로 계산해서 내려준다 (결정 D4)
 
 // 한 달의 수입/지출 합계 (이체는 포함하지 않음)
 export interface MonthlyTotal {
@@ -8,7 +8,7 @@ export interface MonthlyTotal {
   expense: number
 }
 
-// 한 카테고리의 지출 합계와 그달 전체 지출 중 비율
+// 한 카테고리의 지출 합계와 기간 전체 지출 중 비율
 export interface CategoryExpense {
   categoryId: number
   categoryName: string

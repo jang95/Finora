@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import MoneyText from '@/components/common/MoneyText'
-import MonthNavigator from '@/components/common/MonthNavigator'
+import PeriodPicker from '@/components/common/PeriodPicker'
+import LedgerSummary from '@/components/transaction/LedgerSummary'
 import { cn } from '@/lib/utils'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -12,13 +14,18 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
-import { getCategoryExpenses, getMonthlyTotals } from '@/services/statisticsService'
+import {
+  categoryExpensesQueryKey,
+  getCategoryExpenses,
+  getMonthlyTotals,
+  getPeriodSummary,
+  monthlyTotalsQueryKey,
+  periodSummaryQueryKey,
+} from '@/services/statisticsService'
 import type { CategoryExpense, MonthlyTotal } from '@/types/statistics'
 import { formatMoneyCompact, formatRatio } from '@/utils/format'
-import { getThisMonth, type YearMonth } from '@/utils/yearMonth'
-
-// 그래프에 보여줄 개월 수
-const MONTH_COUNT = 6
+import { formatPeriod, getMonthlyChartRange, getPeriod } from '@/utils/period'
+import { getToday } from '@/utils/yearMonth'
 
 // shadcn 차트 설정: 데이터 키(income/expense)마다 범례·툴팁에 쓸 이름과 색을 정한다.
 // 여기 적은 색은 차트 안에서 --color-income, --color-expense 변수로 쓸 수 있다 (아래 <Bar fill=...>).
@@ -30,50 +37,65 @@ const chartConfig = {
 } satisfies ChartConfig
 
 function StatisticsPage() {
-  const [yearMonth, setYearMonth] = useState<YearMonth>(getThisMonth)
-  const { year, month } = yearMonth
+  // 고른 기간. 처음엔 이번 달. 대시보드와 공유하지 않는다 (화면마다 따로)
+  const [period, setPeriod] = useState(() => getPeriod('month', getToday()))
+  // 월별 그래프 범위: 기간이 끝나는 달까지 6개월 (연간이면 그해 12개월)
+  const chartRange = getMonthlyChartRange(period)
 
-  const [monthlyTotals, setMonthlyTotals] = useState<MonthlyTotal[] | null>(null)
-  const [categoryExpenses, setCategoryExpenses] = useState<CategoryExpense[] | null>(null)
+  // [useQuery] 데이터 불러오기 (설명은 lib/queryClient.ts, DashboardPage 참고)
+  // 셋 다 이름표가 ['transactions'] 아래라 거래를 바꾸면 함께 다시 불러온다.
+  // keepPreviousData: 기간을 바꾸는 동안 이전 내용을 보여줘서 화면이 깜빡이지 않게 한다.
+  const summaryQuery = useQuery({
+    queryKey: periodSummaryQueryKey(period.from, period.to),
+    queryFn: () => getPeriodSummary(period.from, period.to),
+    placeholderData: keepPreviousData,
+  })
+  const categoryQuery = useQuery({
+    queryKey: categoryExpensesQueryKey(period.from, period.to),
+    queryFn: () => getCategoryExpenses(period.from, period.to),
+    placeholderData: keepPreviousData,
+  })
+  const monthlyQuery = useQuery({
+    queryKey: monthlyTotalsQueryKey(chartRange.from, chartRange.to),
+    queryFn: () => getMonthlyTotals(chartRange.from, chartRange.to),
+    placeholderData: keepPreviousData,
+  })
 
-  // 데이터 불러오기 방식은 DashboardPage / TransactionsPage 설명 참고
-  useEffect(() => {
-    let ignore = false
-
-    Promise.all([getMonthlyTotals({ year, month }, MONTH_COUNT), getCategoryExpenses(year, month)]).then(
-      ([totals, expenses]) => {
-        if (ignore) return
-        setMonthlyTotals(totals)
-        setCategoryExpenses(expenses)
-      },
-    )
-
-    return () => {
-      ignore = true
-    }
-  }, [year, month])
+  const summary = summaryQuery.data
+  const categoryExpenses = categoryQuery.data
+  const monthlyTotals = monthlyQuery.data
+  const loadError = summaryQuery.error ?? categoryQuery.error ?? monthlyQuery.error
+  // 셋 중 하나라도 이전 기간 데이터를 보여주는 중이면 흐리게
+  const isStale = summaryQuery.isPlaceholderData || categoryQuery.isPlaceholderData || monthlyQuery.isPlaceholderData
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">통계</h1>
-        <MonthNavigator value={yearMonth} onChange={setYearMonth} />
-      </div>
+      <h1 className="text-2xl font-bold">통계</h1>
 
-      {monthlyTotals === null || categoryExpenses === null ? (
+      <PeriodPicker value={period} onChange={setPeriod} />
+
+      {loadError ? (
+        <p role="alert" className="text-destructive">
+          {loadError.message}
+        </p>
+      ) : summary === undefined || categoryExpenses === undefined || monthlyTotals === undefined ? (
         <p className="text-muted-foreground">불러오는 중...</p>
       ) : (
-        <>
-          <MonthlyChartCard totals={monthlyTotals} />
-          <CategoryExpenseCard expenses={categoryExpenses} />
-        </>
+        <div className={cn('flex flex-col gap-6', isStale && 'opacity-60')}>
+          <LedgerSummary income={summary.income} expense={summary.expense} balance={summary.balance} />
+          <MonthlyChartCard
+            totals={monthlyTotals}
+            description={period.unit === 'year' ? formatPeriod(period) : `${monthlyTotals.length}개월 (선택한 기간이 끝나는 달까지)`}
+          />
+          <CategoryExpenseCard expenses={categoryExpenses} periodLabel={formatPeriod(period)} />
+        </div>
       )}
     </div>
   )
 }
 
-// 최근 6개월 수입/지출 막대그래프
-function MonthlyChartCard({ totals }: { totals: MonthlyTotal[] }) {
+// 월별 수입/지출 막대그래프 (월별 비교)
+function MonthlyChartCard({ totals, description }: { totals: MonthlyTotal[]; description: string }) {
   // 가로축에 보여줄 이름('10월')을 붙인다. 금액은 건드리지 않는다.
   // 1월에는 연도를 붙여서('27년 1월') 기간이 해를 넘기는 것을 알 수 있게 한다.
   const chartData = totals.map((t) => ({
@@ -85,7 +107,7 @@ function MonthlyChartCard({ totals }: { totals: MonthlyTotal[] }) {
     <Card>
       <CardHeader>
         <CardTitle>월별 수입·지출</CardTitle>
-        <CardDescription>최근 {MONTH_COUNT}개월</CardDescription>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {/* ChartContainer: 부모 폭에 맞춰 차트 크기를 자동으로 바꾼다 (반응형).
@@ -166,13 +188,13 @@ function MonthlyChartCard({ totals }: { totals: MonthlyTotal[] }) {
   )
 }
 
-// 선택한 달의 카테고리별 지출. 원그래프는 조각 크기 비교가 어려워서 가로 막대 목록으로 보여준다.
-function CategoryExpenseCard({ expenses }: { expenses: CategoryExpense[] }) {
+// 선택한 기간의 카테고리별 지출. 원그래프는 조각 크기 비교가 어려워서 가로 막대 목록으로 보여준다.
+function CategoryExpenseCard({ expenses, periodLabel }: { expenses: CategoryExpense[]; periodLabel: string }) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>카테고리별 지출</CardTitle>
-        <CardDescription>선택한 달의 지출 비중</CardDescription>
+        <CardDescription>{periodLabel} 지출 비중</CardDescription>
       </CardHeader>
       <CardContent>
         {expenses.length === 0 ? (
