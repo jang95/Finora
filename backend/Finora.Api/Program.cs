@@ -10,6 +10,7 @@ using Finora.Api.Data.Entities;
 using Finora.Api.Middleware;
 using Finora.Api.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -129,6 +130,23 @@ builder.Services.AddRateLimiter(options =>
         _ => new FixedWindowRateLimiterOptions { PermitLimit = loginPermitPerMinute, Window = TimeSpan.FromMinutes(1) }));
 });
 
+// 프록시(Tailscale Funnel, 결정 D20) 뒤에서 실제 사용자 IP 알아내기.
+// 프록시를 거치면 앱이 보는 접속 IP는 항상 프록시의 IP 하나다. 그대로 두면 로그인 요청 횟수 제한이 모든 사용자를 한 명으로 센다.
+// 프록시는 원래 IP를 X-Forwarded-For 헤더에 적어 보내므로, 그 값을 접속 IP로 바꿔 쓴다. (UseForwardedHeaders)
+// 단, 누구나 이 헤더를 직접 넣어 보낼 수 있으므로 "믿을 수 있는 프록시에서 온 요청"일 때만 반영한다.
+//   기본으로 믿는 곳: 127.0.0.1 / ::1 (같은 기기). 다른 곳(Docker 내부망 등)은 설정 ForwardedHeaders:KnownNetworks에 추가한다.
+// ForwardLimit = 1: 헤더에 IP가 여러 개면 맨 오른쪽(우리 프록시가 붙인 값) 하나만 쓴다. 왼쪽 값은 사용자가 지어낼 수 있다.
+var knownNetworks = builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [];
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    // XForwardedProto: 프록시가 HTTPS를 처리하고 앱에는 HTTP로 넘겨도, 원래 요청이 https였다는 것을 알 수 있다
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 1;
+    // IPNetwork.Parse("172.16.0.0/12"): "주소/길이" 형식으로 IP 범위를 나타낸다
+    foreach (var network in knownNetworks)
+        options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
+});
+
 var app = builder.Build();
 
 // 명령어 모드: "dotnet run --project Finora.Api -- invite create" 처럼 실행하면 웹 서버를 띄우지 않고 명령만 처리하고 끝낸다.
@@ -137,6 +155,9 @@ if (args is ["invite", ..])
     Environment.ExitCode = await InviteCommand.RunAsync(app.Services, args);
     return;
 }
+
+// 가장 먼저: 뒤의 모든 단계(요청 횟수 제한, HTTPS 확인, 로그)가 바뀐 실제 사용자 IP·https를 보게 한다
+app.UseForwardedHeaders();
 
 // 파이프라인 맨 앞에 둔다. 뒤 단계 어디서 예외가 나도 여기서 잡힌다.
 app.UseExceptionHandler();

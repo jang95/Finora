@@ -631,7 +631,7 @@ GET    /api/statistics/summary?from=2026-10-01&to=2026-10-31   기간 수입·�
 작업 (배포 방식은 결정 D20: 집 노트북 + Tailscale Funnel):
 - [x] 10장 배포 방식 결정 → 결정 기록(3장) D19 → D20
 - [x] 7-1 React 빌드 파일(wwwroot) 제공: 기본값이 "로그인 필요"(fallback policy)라서 `UseStaticFiles`는 `UseAuthorization`보다 앞에 두고, SPA fallback(`MapFallbackToFile`)에는 `AllowAnonymous`를 붙인다. 안 하면 로그인 화면 자체가 401이 된다
-- [ ] 7-2 프록시(Tailscale) 뒤 Forwarded Headers 설정: 안 하면 로그인 요청 횟수 제한이 모든 사용자를 프록시 IP 하나로 묶어 센다
+- [x] 7-2 프록시(Tailscale) 뒤 Forwarded Headers 설정: 안 하면 로그인 요청 횟수 제한이 모든 사용자를 프록시 IP 하나로 묶어 센다
 - [ ] 7-3 운영용 Dockerfile + docker-compose + 운영 환경변수 예시 (DB Migration 적용 방법 포함)
 - [ ] 7-4 DB 자동 백업(노트북 밖으로 복사) + 복원 테스트
 - [ ] 7-5 노트북 준비: Ubuntu Server 설치, 덮개 닫아도 안 꺼지게, 자동 보안 업데이트, Tailscale Funnel로 HTTPS 공개 (노트북 필요)
