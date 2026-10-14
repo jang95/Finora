@@ -7,8 +7,12 @@ namespace Finora.Api.Services;
 
 // 대시보드·통계용 기간 집계. (계획서 Phase 6, 결정 D17)
 // db.Transactions는 Global Query Filter로 항상 "현재 사용자 것"만 보이므로 남의 거래가 합계에 섞이지 않는다.
-public class StatisticsService(FinoraDbContext db)
+// TimeProvider time: "오늘"을 정할 때 쓰는 시계 (KoreaTime 참고). Program.cs에서 TimeProvider.System을 등록한다.
+public class StatisticsService(FinoraDbContext db, TimeProvider time)
 {
+    // 대시보드에 보여줄 최근 거래 수
+    private const int RecentCount = 5;
+
     // 조회할 수 있는 날짜 범위 (TransactionsController의 year 범위 2000~2100과 맞춤)
     // static readonly: 한 번 만들어 두고 바꾸지 않는 값. const는 숫자·문자열 같은 기본 값만 되고
     // DateOnly처럼 new로 만드는 값은 안 되므로 static readonly를 쓴다.
@@ -32,21 +36,53 @@ public class StatisticsService(FinoraDbContext db)
         // 그래서 같은 period를 수입용·지출용으로 나눠 다시 써도 된다.
         var period = db.Transactions.Where(t => t.Date >= from && t.Date <= to);
 
-        // SumAsync → SQL의 SUM(...). 거래가 하나도 없으면 EF Core가 0을 돌려준다 (COALESCE).
-        var income = await period.Where(t => t.Type == TransactionType.Income).SumAsync(t => t.Amount, cancellationToken);
-        var expense = await period.Where(t => t.Type == TransactionType.Expense).SumAsync(t => t.Amount, cancellationToken);
-
-        // 누적 총자산(가계부 기준): 처음부터 to 날짜까지의 수입은 +, 지출은 −로 더한다. 이체(Transfer)는 0.
-        // 조건 ? 값1 : 값2 (삼항 연산자)를 이어 쓰면 "if / else if / else"와 같다.
-        // EF Core가 SQL의 SUM(CASE WHEN ... THEN ... ELSE ... END)로 바꿔서 DB가 한 번에 계산한다.
-        // 0m: 숫자 뒤의 m은 decimal 값이라는 표시 (없으면 int로 본다)
-        var totalAssets = await db.Transactions
-            .Where(t => t.Date <= to)
-            .SumAsync(t => t.Type == TransactionType.Income ? t.Amount
-                         : t.Type == TransactionType.Expense ? -t.Amount
-                         : 0m, cancellationToken);
+        var income = await SumAsync(period, TransactionType.Income, cancellationToken);
+        var expense = await SumAsync(period, TransactionType.Expense, cancellationToken);
+        // 누적 총자산: 처음부터 to 날짜까지
+        var totalAssets = await SumTotalAssetsAsync(db.Transactions.Where(t => t.Date <= to), cancellationToken);
 
         return ServiceResult<PeriodSummaryResponse>.Ok(
             new PeriodSummaryResponse(from, to, income, expense, income - expense, totalAssets));
     }
+
+    // 대시보드: 가계부 기준 총자산, 이번 달 수입/지출, 최근 거래
+    public async Task<DashboardResponse> GetDashboardAsync(CancellationToken cancellationToken)
+    {
+        // 이번 달 1일 ~ 다음 달 1일 "전"까지 (가계부 월 조회 GetMonthlyAsync와 같은 범위)
+        var today = KoreaTime.Today(time);
+        var monthStart = new DateOnly(today.Year, today.Month, 1);
+        var nextMonthStart = monthStart.AddMonths(1);
+        var thisMonth = db.Transactions.Where(t => t.Date >= monthStart && t.Date < nextMonthStart);
+
+        var income = await SumAsync(thisMonth, TransactionType.Income, cancellationToken);
+        var expense = await SumAsync(thisMonth, TransactionType.Expense, cancellationToken);
+        // 총자산은 날짜 제한 없이 거래 전체 (결정 D17 "거래 전체의 수입 − 지출 누적")
+        var totalAssets = await SumTotalAssetsAsync(db.Transactions, cancellationToken);
+
+        // Take(n) → SQL의 LIMIT n. 정렬한 뒤 앞에서 n건만 가져온다.
+        var recent = await db.Transactions
+            .OrderByDescending(t => t.Date)
+            .ThenByDescending(t => t.Id) // 같은 날은 나중에 등록한 것이 위
+            .Take(RecentCount)
+            .Select(TransactionService.ToResponse)
+            .ToListAsync(cancellationToken);
+
+        return new DashboardResponse(totalAssets, income, expense, recent);
+    }
+
+    // ---- 내부 도우미 ----
+
+    // 한 종류(수입 또는 지출)의 금액 합계.
+    // SumAsync → SQL의 SUM(...). 거래가 하나도 없으면 EF Core가 0을 돌려준다 (COALESCE).
+    private static Task<decimal> SumAsync(IQueryable<Transaction> transactions, TransactionType type, CancellationToken cancellationToken) =>
+        transactions.Where(t => t.Type == type).SumAsync(t => t.Amount, cancellationToken);
+
+    // 총자산(가계부 기준): 수입은 +, 지출은 −로 더한다. 이체(Transfer)는 0.
+    // 조건 ? 값1 : 값2 (삼항 연산자)를 이어 쓰면 "if / else if / else"와 같다.
+    // EF Core가 SQL의 SUM(CASE WHEN ... THEN ... ELSE ... END)로 바꿔서 DB가 한 번에 계산한다.
+    // 0m: 숫자 뒤의 m은 decimal 값이라는 표시 (없으면 int로 본다)
+    private static Task<decimal> SumTotalAssetsAsync(IQueryable<Transaction> transactions, CancellationToken cancellationToken) =>
+        transactions.SumAsync(t => t.Type == TransactionType.Income ? t.Amount
+                                 : t.Type == TransactionType.Expense ? -t.Amount
+                                 : 0m, cancellationToken);
 }

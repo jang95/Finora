@@ -169,6 +169,25 @@ public class UserIsolationTests(PostgresApiFactory factory) : IClassFixture<Post
         Assert.Equal(0m, summaryB.GetProperty("totalAssets").GetDecimal());
     }
 
+    [Fact]
+    public async Task Dashboard_ShowsOnlyOwnTotalsAndRecentTransactions()
+    {
+        var clientA = await RegisterAndLoginAsync();
+        var clientB = await RegisterAndLoginAsync();
+        var foodA = (await clientA.GetFromJsonAsync<List<CategoryDto>>("/api/categories"))!.Single(c => c.Name == "식비").Id;
+        await clientA.PostAsJsonAsync("/api/transactions",
+            new { date = "2026-10-14", type = "Expense", categoryId = foodA, amount = 10000, memo = "A의 거래" });
+
+        var dashboardA = await clientA.GetFromJsonAsync<JsonElement>("/api/dashboard");
+        var dashboardB = await clientB.GetFromJsonAsync<JsonElement>("/api/dashboard");
+
+        // 최근 거래 목록은 금액·메모가 그대로 보이므로 특히 남의 것이 섞이면 안 된다
+        Assert.Equal(1, dashboardA.GetProperty("recentTransactions").GetArrayLength());
+        Assert.Equal(-10000m, dashboardA.GetProperty("totalAssets").GetDecimal());
+        Assert.Equal(0, dashboardB.GetProperty("recentTransactions").GetArrayLength());
+        Assert.Equal(0m, dashboardB.GetProperty("totalAssets").GetDecimal());
+    }
+
     // ---- 테스트 도우미 ----
 
     private HttpClient CreateClient() => _server.CreateHttpsClient();

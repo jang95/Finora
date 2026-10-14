@@ -50,6 +50,9 @@ builder.Services.AddScoped<RegistrationService>();
 builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<TransactionService>();
 builder.Services.AddScoped<StatisticsService>();
+// "지금 시각"을 알려주는 시계. 실제 서버는 진짜 시계, 테스트는 고정된 시각으로 바꿔 끼운다. (KoreaTime 참고)
+// AddSingleton: 앱 전체에서 하나만 만들어 같이 쓴다 (AddScoped는 요청마다 새로 만든다)
+builder.Services.AddSingleton(TimeProvider.System);
 
 // 현재 사용자 (FinoraDbContext의 Global Query Filter가 사용). HttpContextAccessor가 있어야 요청 정보를 읽을 수 있다.
 builder.Services.AddHttpContextAccessor();

@@ -123,7 +123,8 @@ public class TransactionService(FinoraDbContext db, CurrentUser currentUser)
 
     // Entity → 응답 DTO. 식(Expression)으로 두면 EF Core가 SQL로 바꿔서 필요한 컬럼만 조회한다.
     // t.Category!.Name: 카테고리 이름을 JOIN으로 가져온다. (카테고리가 없으면 null)
-    private static readonly System.Linq.Expressions.Expression<Func<Transaction, TransactionResponse>> ToResponse =
+    // internal: 같은 프로젝트(Finora.Api) 안에서만 쓸 수 있다. 대시보드의 최근 거래(StatisticsService)도 같은 변환을 쓴다.
+    internal static readonly System.Linq.Expressions.Expression<Func<Transaction, TransactionResponse>> ToResponse =
         t => new TransactionResponse(t.Id, t.Date, t.Type, t.CategoryId, t.Category!.Name, t.Amount, t.Memo);
 
     private async Task<TransactionResponse> GetResponseAsync(int id, CancellationToken cancellationToken) =>
