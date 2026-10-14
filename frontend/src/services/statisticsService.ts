@@ -1,6 +1,21 @@
 import { transactionsMock } from '@/mocks/transactions'
-import type { CategoryExpense, MonthlyTotal } from '@/types/statistics'
+import { apiRequest } from '@/services/api'
+import { transactionsQueryKey } from '@/services/transactionService'
+import type { CategoryExpense, MonthlyTotal, PeriodSummary } from '@/types/statistics'
 import { addMonths, type YearMonth } from '@/utils/yearMonth'
+
+// ---- 실제 API (Phase 6) ----
+
+// 캐시 이름표. 거래로 만든 값이라 dashboardQueryKey처럼 ['transactions'] 아래에 둔다 (거래를 바꾸면 함께 다시 불러옴)
+// from, to가 이름표에 들어 있어서 기간을 바꾸면 그 기간을 새로 불러온다.
+export const periodSummaryQueryKey = (from: string, to: string) => [...transactionsQueryKey, 'summary', from, to] as const
+
+// 기간 수입·지출·합계 + to 기준 누적 총자산. 계산은 Backend decimal (결정 D4)
+export async function getPeriodSummary(from: string, to: string): Promise<PeriodSummary> {
+  return apiRequest<PeriodSummary>(`/api/statistics/summary?from=${from}&to=${to}`)
+}
+
+// ---- 아래는 아직 mock (통계 화면 연결 단계에서 API로 바꾼다) ----
 
 // 지금은 Backend 대신 여기서 mock 거래내역으로 합계를 낸다. 화면(pages)에서는 금액을 더하지 않는다 (결정 D4)
 // 가계부에서 거래를 추가·수정하면 통계에도 반영된다 (새로고침하면 초기화)

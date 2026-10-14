@@ -15,3 +15,14 @@ export interface CategoryExpense {
   amount: number
   ratio: number // 비율(%) 예: 35.5
 }
+
+// 기간 요약 (GET /api/statistics/summary). from ~ to 양 끝 날짜 포함.
+// totalAssets: to 날짜까지의 누적 총자산 (가계부 기준 = 지금까지 수입 − 지출, 결정 D17)
+export interface PeriodSummary {
+  from: string
+  to: string
+  income: number
+  expense: number
+  balance: number
+  totalAssets: number
+}
