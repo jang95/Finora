@@ -49,6 +49,7 @@ builder.Services.AddIdentityCore<FinoraUser>(options =>
 builder.Services.AddScoped<RegistrationService>();
 builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<TransactionService>();
+builder.Services.AddScoped<StatisticsService>();
 
 // 현재 사용자 (FinoraDbContext의 Global Query Filter가 사용). HttpContextAccessor가 있어야 요청 정보를 읽을 수 있다.
 builder.Services.AddHttpContextAccessor();

@@ -148,6 +148,27 @@ public class UserIsolationTests(PostgresApiFactory factory) : IClassFixture<Post
         Assert.True(body.GetProperty("errors").TryGetProperty("CategoryId", out _));
     }
 
+    [Fact]
+    public async Task Statistics_SummaryIncludesOnlyOwnTransactions()
+    {
+        var clientA = await RegisterAndLoginAsync();
+        var clientB = await RegisterAndLoginAsync();
+        var foodA = (await clientA.GetFromJsonAsync<List<CategoryDto>>("/api/categories"))!.Single(c => c.Name == "식비").Id;
+        await clientA.PostAsJsonAsync("/api/transactions",
+            new { date = "2026-10-14", type = "Expense", categoryId = foodA, amount = 10000 });
+
+        // const: 바뀌지 않는 값. 메서드 안에서도 쓸 수 있다. A·B가 같은 주소를 조회하게 한 번만 적는다.
+        const string url = "/api/statistics/summary?from=2026-10-01&to=2026-10-31";
+        var summaryA = await clientA.GetFromJsonAsync<JsonElement>(url);
+        var summaryB = await clientB.GetFromJsonAsync<JsonElement>(url);
+
+        // A의 지출은 A의 기간 합계·누적 총자산에만 들어간다
+        Assert.Equal(10000m, summaryA.GetProperty("expense").GetDecimal());
+        Assert.Equal(-10000m, summaryA.GetProperty("totalAssets").GetDecimal());
+        Assert.Equal(0m, summaryB.GetProperty("expense").GetDecimal());
+        Assert.Equal(0m, summaryB.GetProperty("totalAssets").GetDecimal());
+    }
+
     // ---- 테스트 도우미 ----
 
     private HttpClient CreateClient() => _server.CreateHttpsClient();
