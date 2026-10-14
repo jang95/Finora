@@ -151,6 +151,24 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// React 빌드 파일(wwwroot) 제공. 운영에서는 Docker 이미지를 만들 때 frontend/dist를 wwwroot에 넣는다. (결정 D19)
+// 개발 중에는 wwwroot가 없고 화면은 Vite(5173)가 제공하므로 여기는 아무 일도 하지 않는다.
+// UseAuthorization보다 앞에 둔다: 기본값이 "로그인 필요"(fallback policy)라서, 뒤에 두면 로그인 화면의 JS 파일까지 401이 된다.
+// (화면 파일에는 금융 데이터가 없다. 데이터는 모두 로그인이 필요한 /api로만 받는다)
+var spaFileOptions = new StaticFileOptions
+{
+    // OnPrepareResponse: 파일을 보내기 직전에 응답 헤더를 고친다. Cache-Control = 브라우저가 파일을 얼마나 재사용할지.
+    OnPrepareResponse = context =>
+    {
+        // /assets/ 파일은 이름에 내용 해시가 붙는다(index-a1b2c3.js). 내용이 바뀌면 이름도 바뀌므로 1년 동안 재사용해도 된다.
+        // index.html은 새 배포의 파일 이름을 가리켜야 하므로 매번 서버에 확인한다(no-cache). 안 하면 배포 후에도 예전 화면이 뜬다.
+        context.Context.Response.Headers.CacheControl = context.Context.Request.Path.StartsWithSegments("/assets")
+            ? "public, max-age=31536000, immutable"
+            : "no-cache";
+    },
+};
+app.UseStaticFiles(spaFileOptions);
+
 // 순서가 중요하다: 먼저 Cookie로 "누구인지" 확인(Authentication)하고, 그다음 "허용되는지" 판단(Authorization)한다.
 app.UseRateLimiter();
 app.UseAuthentication();
@@ -158,5 +176,14 @@ app.UseAuthorization();
 
 // 각 Controller의 [Route] 주소로 요청을 연결한다.
 app.MapControllers();
+
+// 없는 /api 주소는 그대로 404(로그인 전에는 401). 아래 화면 fallback이 index.html을 돌려주지 않게, /api로 시작하면 여기서 끝낸다.
+// MapFallback: 다른 주소에 하나도 맞지 않을 때만 쓰이는 마지막 주소. "api"처럼 글자가 정해진 쪽이 아래 {*path}보다 먼저 맞는다.
+app.MapFallback("/api/{**path}", () => Results.NotFound());
+
+// 그 밖의 주소(/login, /transactions 등)는 React가 화면을 고르므로 index.html을 돌려준다 (SPA fallback).
+// AllowAnonymous: 로그인 화면도 이 index.html로 열리므로 로그인 없이 받을 수 있어야 한다.
+// 기본 패턴 {*path:nonfile}: "."이 있는 파일 주소(/assets/없는파일.js)는 제외한다 → index.html 대신 401/404
+app.MapFallbackToFile("index.html", spaFileOptions).AllowAnonymous();
 
 app.Run();

@@ -32,3 +32,6 @@ obj/
 .env.*
 !.env.example
 appsettings.*.local.json
+
+# 운영 빌드 때 Docker가 frontend/dist를 넣는 폴더 (결정 D19). 저장소에는 넣지 않는다
+backend/Finora.Api/wwwroot/
