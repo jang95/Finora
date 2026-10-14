@@ -167,6 +167,15 @@ public class UserIsolationTests(PostgresApiFactory factory) : IClassFixture<Post
         Assert.Equal(-10000m, summaryA.GetProperty("totalAssets").GetDecimal());
         Assert.Equal(0m, summaryB.GetProperty("expense").GetDecimal());
         Assert.Equal(0m, summaryB.GetProperty("totalAssets").GetDecimal());
+
+        // 카테고리별·월별 통계도 마찬가지
+        const string period = "?from=2026-10-01&to=2026-10-31";
+        var categoriesB = await clientB.GetFromJsonAsync<JsonElement>("/api/statistics/categories" + period);
+        var monthlyB = await clientB.GetFromJsonAsync<JsonElement>("/api/statistics/monthly" + period);
+        Assert.Equal(0, categoriesB.GetArrayLength());
+        Assert.Equal(0m, monthlyB[0].GetProperty("expense").GetDecimal());
+        var categoriesA = await clientA.GetFromJsonAsync<JsonElement>("/api/statistics/categories" + period);
+        Assert.Equal(1, categoriesA.GetArrayLength());
     }
 
     [Fact]

@@ -22,4 +22,28 @@ public class StatisticsController(StatisticsService statistics) : ControllerBase
         if (result.Errors is not null) return this.ValidationErrors(result.Errors);
         return result.Value!;
     }
+
+    // GET /api/statistics/categories?from=2026-10-01&to=2026-10-31 — 기간의 카테고리별 지출과 비율 (금액 큰 순)
+    [HttpGet("categories")]
+    public async Task<ActionResult<List<CategoryExpenseResponse>>> GetCategoryExpenses(
+        [FromQuery, BindRequired] DateOnly from,
+        [FromQuery, BindRequired] DateOnly to,
+        CancellationToken cancellationToken)
+    {
+        var result = await statistics.GetCategoryExpensesAsync(from, to, cancellationToken);
+        if (result.Errors is not null) return this.ValidationErrors(result.Errors);
+        return result.Value!;
+    }
+
+    // GET /api/statistics/monthly?from=2026-05-01&to=2026-10-31 — 기간에 걸친 달마다의 수입/지출 (최대 36개월)
+    [HttpGet("monthly")]
+    public async Task<ActionResult<List<MonthlyTotalResponse>>> GetMonthlyTotals(
+        [FromQuery, BindRequired] DateOnly from,
+        [FromQuery, BindRequired] DateOnly to,
+        CancellationToken cancellationToken)
+    {
+        var result = await statistics.GetMonthlyTotalsAsync(from, to, cancellationToken);
+        if (result.Errors is not null) return this.ValidationErrors(result.Errors);
+        return result.Value!;
+    }
 }

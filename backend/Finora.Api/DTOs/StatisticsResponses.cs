@@ -11,3 +11,10 @@ public record PeriodSummaryResponse(DateOnly From, DateOnly To, decimal Income, 
 // RecentTransactions: 최근 거래 몇 건 (최신 날짜가 위, 같은 날은 나중에 등록한 것이 위)
 // 계좌 기준 총자산은 Phase 8에서 추가한다. (결정 D17)
 public record DashboardResponse(List<TransactionResponse> RecentTransactions);
+
+// GET /api/statistics/categories — 기간의 카테고리별 지출 (금액 큰 순). Frontend types/statistics.ts의 CategoryExpense와 같은 모양.
+// Ratio: 기간 전체 지출 중 비율(%). 소수 첫째 자리까지 반올림 (예: 35.48 → 35.5). 반올림 때문에 합이 정확히 100이 아닐 수 있다.
+public record CategoryExpenseResponse(int CategoryId, string CategoryName, decimal Amount, decimal Ratio);
+
+// GET /api/statistics/monthly — 기간에 걸친 달마다의 수입/지출 (오래된 달이 앞). Frontend의 MonthlyTotal과 같은 모양.
+public record MonthlyTotalResponse(int Year, int Month, decimal Income, decimal Expense);
