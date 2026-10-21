@@ -28,7 +28,7 @@
 
 운영 DB를 백업 시점으로 **되돌리는** 작업이다. 백업 이후 입력한 거래는 사라진다.
 
-1. 새 노트북(또는 고친 노트북)에 7-5 준비를 다시 하고, 저장소와 `.env`를 준비한다. (`.env` 값은 따로 안전한 곳에 보관해 둔다)
+1. 새 노트북(또는 고친 노트북)에 `docs/laptop-setup.md` 순서대로 다시 준비하고, 저장소와 `.env`를 준비한다. (`.env` 값은 따로 안전한 곳에 보관해 둔다)
 2. 클라우드에서 최신 백업을 내려받는다: `rclone copy <RCLONE_REMOTE>finora-YYYYMMDD-HHMMSS.dump ~/restore/`
 3. 먼저 `scripts/restore-test.sh`로 그 파일이 정상인지 확인한다.
 4. api를 멈추고 DB만 띄운다:

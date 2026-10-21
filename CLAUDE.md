@@ -15,7 +15,7 @@
 
 - `frontend/` (React+TS+Vite), `backend/` (ASP.NET Core, .NET 10 — 명령어·규칙은 `backend/CLAUDE.md`), `docs/`
 - 개발용 PostgreSQL: 저장소 루트에서 `docker compose up -d` (값은 `.env`, 예시는 `.env.example`)
-- 운영(집 노트북, 결정 D20): `compose.prod.yaml` + 루트 `Dockerfile`, 백업 `scripts/`. 명령어는 `docs/operations.md`
+- 운영(집 노트북, 결정 D20): `compose.prod.yaml` + 루트 `Dockerfile`, 백업 `scripts/`. 노트북 설치는 `docs/laptop-setup.md`, 명령어는 `docs/operations.md`
 - Frontend 명령어 (`frontend/`에서): `npm run dev` / `npm run lint` / `npm run build`
 
 ## Git

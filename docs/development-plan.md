@@ -7,6 +7,7 @@
 
 | 날짜 | 내용 |
 |---|---|
+| 2026-10-21 | v11 — 노트북 운영체제 Ubuntu Server → Linux Mint 22.3 Xfce(D21). 노트북 준비 안내(`docs/laptop-setup.md`) |
 | 2026-10-15 | v10 — 첫 배포 방식: 클라우드 VM(D19) → 집 노트북 + Tailscale Funnel(D20). Phase 7 작업 세분화, React 빌드 파일 제공(7-1) |
 | 2026-10-14 | v9 — Phase 6 완료 (기간 조회 일·주·월·연·직접 지정, 대시보드·통계 실제 데이터 연결, 비밀번호 변경). 결정 D18(한국 시간 기준) 추가 |
 | 2026-10-14 | v8 — Phase 5 완료 (카테고리 관리, 거래 등록·수정·삭제, 월별·연간 조회, TanStack Query) |
@@ -119,6 +120,7 @@ Finora는 가족·지인 몇 명(10명 이하)이 사용할 수 있는 **개인 
 | D18 | 서버가 "오늘"을 정해야 할 때는 **한국 시간(Asia/Seoul)** 기준으로 한다 (`KoreaTime`, `TimeProvider`). 기간 조회는 화면이 고른 from/to를 보낸다 | 배포 서버는 UTC일 수 있어서, UTC로 정하면 한국 1일 오전 0~9시가 전달로 계산된다. 사용자는 모두 한국에 있다. 대시보드도 기간 선택을 쓰게 되면서 지금은 쓰는 곳이 없고, Phase 8 월말 스냅샷에서 쓴다. 시계를 `TimeProvider`로 받아 경계 시각을 테스트로 확인한다. (2026-10-14) |
 | D19 | (→ D20으로 변경) 첫 배포는 **클라우드 VM 1대 + 도메인**(10장 방식 B). VM 안에서 Docker Compose로 ASP.NET Core(React 빌드 포함) + PostgreSQL을 띄우고, 앞에 **Caddy**(리버스 프록시, HTTPS 인증서 자동 발급·갱신)를 둔다. VM 업체와 도메인은 서버를 만들 때 정한다 | 가족이 앱 설치 없이 주소만 열면 쓸 수 있어야 한다(A는 사용자마다 Tailscale 설치 필요). C(PaaS)보다 비용이 낮다. 개발 DB도 Docker라(D12) 같은 구성을 그대로 쓸 수 있다. Caddy는 설정 몇 줄로 HTTPS가 되어 인증서 관리 부담이 적다. (2026-10-15) |
 | D20 | 첫 배포는 **집의 안 쓰는 노트북**(Ubuntu Server LTS로 교체) + Docker Compose(ASP.NET Core + PostgreSQL) + **Tailscale Funnel**로 공개한다. 도메인은 사지 않고 Tailscale이 주는 `*.ts.net` 주소와 HTTPS를 쓴다. Caddy는 쓰지 않는다. DB 백업은 반드시 노트북 밖으로 복사한다 | D19(클라우드 VM)는 연 13~14만 원이 들지만, 노트북은 전기료만 든다. Funnel은 공유기 포트를 열지 않고 집 IP도 드러나지 않으며, 가족은 앱 설치 없이 주소만 열면 된다. 첫 배포 목적은 피드백(Phase 7)이라 가끔 접속이 안 되는 것은 감수한다. 같은 compose 파일을 그대로 VM으로 옮길 수 있어 나중에 바꾸기 쉽다. 오래된 디스크 고장에 대비해 외부 백업이 필수다. 무료 요금제에서 Funnel을 쓸 수 있는지는 설치할 때 확인하고, 안 되면 사설망 방식(10장 A)으로 바꾼다. (2026-10-15) |
+| D21 | 노트북 운영체제는 Ubuntu Server 대신 **Linux Mint 22.3 Xfce**(Ubuntu 24.04 LTS 기반)를 쓴다. 노트북: i5-3230M, RAM 4GB, SSD 500GB | 이미 설치를 시작했고, Ubuntu 24.04 기반이라 Docker·Tailscale·rclone을 Ubuntu용 그대로 설치할 수 있다. 화면이 있어 처음 리눅스를 다루기 쉽다. Xfce는 가벼운 데스크톱이라 RAM 4GB에서도 Finora(PostgreSQL + API)를 함께 돌릴 여유가 있다. 데스크톱이 덮개 닫힘을 따로 처리하므로 시스템·Xfce 두 곳 모두 설정한다(`docs/laptop-setup.md`). (2026-10-21) |
 
 ---
 
@@ -634,7 +636,7 @@ GET    /api/statistics/summary?from=2026-10-01&to=2026-10-31   기간 수입·�
 - [x] 7-2 프록시(Tailscale) 뒤 Forwarded Headers 설정: 안 하면 로그인 요청 횟수 제한이 모든 사용자를 프록시 IP 하나로 묶어 센다
 - [x] 7-3 운영용 Dockerfile + docker-compose + 운영 환경변수 예시 (DB Migration 적용 방법 포함)
 - [x] 7-4 DB 백업 스크립트(노트북 밖 암호화 복사) + 복원 테스트 스크립트 (`scripts/`, 사용법은 `docs/operations.md`). 매일 자동 실행·rclone 설정은 7-5
-- [ ] 7-5 노트북 준비: Ubuntu Server 설치, 덮개 닫아도 안 꺼지게, 자동 보안 업데이트, Docker, Tailscale Funnel로 HTTPS 공개, rclone(crypt) 설정 + 백업 매일 자동 실행 (노트북 필요)
+- [ ] 7-5 노트북 준비 (`docs/laptop-setup.md`): Linux Mint 설치(결정 D21), 덮개 닫아도 안 꺼지게, 자동 보안 업데이트, Docker, Tailscale Funnel로 HTTPS 공개, rclone(crypt) 설정 + 백업 매일 자동 실행 (노트북 필요)
 
 완료 기준:
 - Android 폰에서 외부 네트워크로 접속·로그인 가능
