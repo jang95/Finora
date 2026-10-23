@@ -92,9 +92,13 @@ cat .env                        # change-me가 48자리 값으로 바뀌었는�
 
 ```bash
 docker compose -f compose.prod.yaml up -d db
-docker compose -f compose.prod.yaml ps          # db가 "healthy"가 될 때까지 몇 초 기다린다
-docker compose -f compose.prod.yaml exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select version();"'
+docker compose -f compose.prod.yaml ps          # db가 "healthy"가 될 때까지 몇 초 기다린다 (한 줄씩 실행)
+docker compose -f compose.prod.yaml exec db sh -c 'psql -P pager=off -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select version();"'
 ```
+
+- `health: starting`일 때 psql을 실행하면 `connection to server on socket ... failed`가 난다. healthy가 된 뒤 다시 실행한다.
+- `.env`를 화면에 띄운 채 사진·화면 공유하지 않는다. 비밀번호가 새어 나가면, **데이터가 없을 때만** `down -v`(DB 데이터 삭제) 후 비밀번호를 다시 만들고 `up -d db`.
+  데이터가 생긴 뒤에는 `-v`를 절대 쓰지 않는다 (PostgreSQL은 처음 만들 때의 비밀번호를 데이터 안에 저장한다).
 
 전체(Migration + API)를 띄운다. 처음 빌드는 이 노트북에서 10분 이상 걸릴 수 있다.
 
