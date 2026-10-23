@@ -118,7 +118,50 @@ scripts/backup.sh
 scripts/restore-test.sh ~/finora-backups/finora-*.dump
 ```
 
-## 5. 다음 (예정)
+## 5. 원격 접속 (Tailscale + SSH)
 
-- Tailscale 설치 + Funnel로 HTTPS 공개 (무료 요금제에서 되는지 확인)
+개발 PC에서 노트북 터미널을 쓰기 위한 설정. 공유기 포트는 열지 않고 **Tailscale 안에서만** SSH를 받는다.
+
+1) 노트북과 개발 PC에 Tailscale을 설치하고 같은 계정으로 로그인한다. (tailscale.com/download)
+   개발 PC에서 `tailscale status`에 두 기기가 보이면 된다.
+
+2) 노트북: SSH 서버 설치
+
+```bash
+sudo apt install -y openssh-server
+sudo systemctl enable --now ssh
+```
+
+3) 개발 PC(PowerShell): 키를 만들고 노트북에 공개 키를 등록한다. 비밀번호는 이때 한 번만 입력한다.
+   `<노트북>` = `tailscale status`에 보이는 노트북의 100.x 주소 (문서·커밋에 적지 않는다)
+
+```powershell
+ssh-keygen -t ed25519 -f $env:USERPROFILE\.ssh\finora_laptop -C finora-laptop-from-desktop
+type $env:USERPROFILE\.ssh\finora_laptop.pub | ssh jj-server@<노트북> "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+ssh -i $env:USERPROFILE\.ssh\finora_laptop jj-server@<노트북> hostname   # 비밀번호 없이 이름이 나오면 성공
+```
+
+4) 노트북: 비밀번호 로그인 끄기 (**3)이 성공한 뒤에만**. 먼저 끄면 접속할 방법이 없어진다)
+
+```bash
+printf 'PasswordAuthentication no\nKbdInteractiveAuthentication no\nPermitRootLogin no\n' \
+  | sudo tee /etc/ssh/sshd_config.d/10-finora.conf
+sudo sshd -t && sudo systemctl restart ssh      # sshd -t: 설정 문법 검사. 오류가 없을 때만 재시작
+```
+
+5) 노트북: 방화벽(ufw) — SSH는 Tailscale(`tailscale0`)로 들어온 연결만 받는다
+
+```bash
+sudo ufw default deny incoming                  # 밖에서 먼저 들어오는 연결은 기본으로 막는다
+sudo ufw default allow outgoing                 # 노트북이 밖으로 나가는 연결(업데이트·백업)은 허용
+sudo ufw allow in on tailscale0 to any port 22 proto tcp
+sudo ufw enable
+sudo ufw status verbose
+```
+
+- Finora(`127.0.0.1:8080`)는 노트북 자신만 접속하므로 ufw와 관계없다. Tailscale Funnel도 노트북 안에서 전달하므로 막히지 않는다.
+
+## 6. 다음 (예정)
+
+- Tailscale Funnel로 HTTPS 공개 (무료 요금제에서 되는지 확인)
 - rclone(crypt) 클라우드 설정 + 백업 매일 자동 실행
