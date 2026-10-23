@@ -80,8 +80,9 @@ git clone https://github.com/jang95/Finora.git ~/finora
 cd ~/finora
 cp .env.example .env
 chmod 600 .env                  # 나만 읽고 쓸 수 있게 (비밀번호가 들어 있다)
-openssl rand -hex 24            # 출력된 값을 .env의 POSTGRES_PASSWORD에 넣는다
-nano .env                       # 편집 후 Ctrl+O(저장) → Enter → Ctrl+X(나가기)
+# POSTGRES_PASSWORD=change-me 줄을 무작위 비밀번호로 바꾼다 (복사·붙여넣기 실수가 없게 자동으로)
+sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" .env
+cat .env                        # change-me가 48자리 값으로 바뀌었는지 확인
 ```
 
 - `.env` 내용은 노트북이 고장 나도 복원할 수 있게 **비밀번호 관리자 등 안전한 곳에 따로 보관**한다. (`docs/operations.md` 실제 복원 1번)
