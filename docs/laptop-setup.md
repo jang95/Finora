@@ -161,7 +161,32 @@ sudo ufw status verbose
 
 - Finora(`127.0.0.1:8080`)는 노트북 자신만 접속하므로 ufw와 관계없다. Tailscale Funnel도 노트북 안에서 전달하므로 막히지 않는다.
 
-## 6. 다음 (예정)
+## 6. 인터넷 공개 (Tailscale Funnel)
 
-- Tailscale Funnel로 HTTPS 공개 (무료 요금제에서 되는지 확인)
+가족이 Tailscale 없이 `https://finora.<tailnet>.ts.net` 으로 접속하게 한다. 공유기 포트포워딩은 하지 않는다 (노트북이 Tailscale 쪽으로 먼저 연결해 두고 요청을 받아 온다).
+Funnel은 무료 Personal 요금제(비상업적 사용)에서 쓸 수 있다.
+
+1) 노트북: 기기 이름을 짧게 (공개 주소의 앞부분이 된다)
+
+```bash
+sudo tailscale set --hostname=finora
+```
+
+2) 노트북: Funnel 켜기 — 공개 주소로 온 요청을 `127.0.0.1:8080`(Finora)으로 넘긴다
+
+```bash
+sudo tailscale funnel --bg 8080                 # --bg: 터미널을 닫거나 재부팅해도 유지
+tailscale funnel status                         # "Funnel on" + 주소가 나오면 성공
+```
+
+- 처음이면 "Funnel not available"과 승인 링크가 나온다. 링크를 열어 tailnet의 HTTPS·Funnel을 허용하고 명령을 다시 실행한다.
+- HTTPS 인증서는 Tailscale이 자동으로 받고 갱신한다. 처음 켠 직후 몇 분은 접속이 실패할 수 있다.
+- 끄기: `sudo tailscale funnel reset` (공개 설정 전체 삭제)
+
+3) 확인
+- Android 폰: Wi-Fi를 끄고(모바일 데이터) 주소에 접속 → 로그인 화면이 보이면 성공
+- 접속자 IP 확인(7-2): Funnel 주소로 틀린 로그인을 1분에 11번 → 11번째 429. 바로 노트북에서 `127.0.0.1:8080`으로 1번 → 401이면 사람마다 IP가 구분되는 것 (429면 모두 프록시 IP 하나로 묶인 것)
+
+## 7. 다음 (예정)
+
 - rclone(crypt) 클라우드 설정 + 백업 매일 자동 실행
