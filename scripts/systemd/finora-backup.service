@@ -1,0 +1,12 @@
+# Finora DB 백업 1회 실행 (Phase 7-5). finora-backup.timer가 매일 이 서비스를 실행한다.
+# 사용자 단위(user unit): ~/.config/systemd/user/ 에 두고 sudo 없이 systemctl --user 로 관리한다.
+# 설치·확인 방법은 docs/laptop-setup.md 7장.
+
+[Unit]
+Description=Finora DB backup (pg_dump + rclone crypt copy)
+
+[Service]
+# Type=oneshot: 계속 떠 있는 서버가 아니라 "한 번 실행하고 끝나는" 작업
+Type=oneshot
+# %h: 이 사용자의 홈 폴더 (예: /home/<사용자>). 저장소가 ~/finora 에 있다고 가정한다
+ExecStart=%h/finora/scripts/backup.sh

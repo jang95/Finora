@@ -1,0 +1,13 @@
+# 매일 새벽 3시 30분에 finora-backup.service를 실행한다 (Phase 7-5).
+# timer는 cron 같은 "예약 실행"을 systemd 방식으로 하는 것. 실행 기록이 journalctl에 남는다.
+
+[Unit]
+Description=Daily Finora DB backup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+# Persistent=true: 그 시각에 노트북이 꺼져 있었으면, 다음에 켜졌을 때 놓친 백업을 바로 실행한다
+Persistent=true
+
+[Install]
+WantedBy=timers.target

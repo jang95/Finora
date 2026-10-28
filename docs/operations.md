@@ -17,10 +17,22 @@
 ## 백업
 
 - `scripts/backup.sh`: DB를 `~/finora-backups`에 저장(14일치 보관)하고, `RCLONE_REMOTE`가 있으면 클라우드에 **암호화해서** 복사한다(30일치 보관).
-- 하루 한 번 자동 실행은 7-5에서 설정한다.
+- 매일 03:30에 systemd timer가 자동 실행한다 (설치: `docs/laptop-setup.md` 7장).
+
+| 할 일 | 명령어 |
+|---|---|
+| 다음 실행 시각 | `systemctl --user list-timers finora-backup.timer` |
+| 지금 바로 백업 | `systemctl --user start finora-backup.service` |
+| 실행 기록 (실패 확인) | `journalctl --user -u finora-backup.service -n 20` |
+| 클라우드 백업 목록 | `rclone ls finora-crypt:` |
+
 - **한 달에 한 번** 복원 테스트를 한다. 클라우드에서 내려받은 파일로도 해 본다.
   ```bash
   scripts/restore-test.sh ~/finora-backups/finora-YYYYMMDD-HHMMSS.dump
+
+  # 클라우드 파일로: 임시 폴더에 내려받아서 테스트
+  mkdir -p ~/restore && rclone copy finora-crypt:finora-YYYYMMDD-HHMMSS.dump ~/restore/
+  scripts/restore-test.sh ~/restore/finora-YYYYMMDD-HHMMSS.dump && rm -r ~/restore
   ```
   운영 DB는 건드리지 않고, 임시 DB에 복원해서 표별 행 수를 보여준 뒤 임시 DB를 지운다.
 

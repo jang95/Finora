@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# DB 백업 (Phase 7-4, 결정 D20). 노트북(Ubuntu)에서 하루 한 번 자동으로 실행한다 (타이머 설정은 7-5).
+# DB 백업 (Phase 7-4, 결정 D20). 노트북에서 하루 한 번 자동으로 실행한다 (scripts/systemd/, docs/laptop-setup.md 7장).
 #   scripts/backup.sh
 #
 # 1) 운영 DB(compose.prod.yaml의 db)를 pg_dump로 파일 하나에 저장한다

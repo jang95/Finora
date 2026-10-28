@@ -187,6 +187,63 @@ tailscale funnel status                         # "Funnel on" + 주소가 나오
 - Android 폰: Wi-Fi를 끄고(모바일 데이터) 주소에 접속 → 로그인 화면이 보이면 성공
 - 접속자 IP 확인(7-2): Funnel 주소로 틀린 로그인을 1분에 11번 → 11번째 429. 바로 노트북에서 `127.0.0.1:8080`으로 1번 → 401이면 사람마다 IP가 구분되는 것 (429면 모두 프록시 IP 하나로 묶인 것)
 
-## 7. 다음 (예정)
+## 7. 클라우드 백업 (rclone crypt) + 매일 자동 실행
 
-- rclone(crypt) 클라우드 설정 + 백업 매일 자동 실행
+`scripts/backup.sh`가 만든 백업을 **암호화해서** Google Drive에 복사하고, 매일 03:30에 자동으로 실행한다.
+rclone: 클라우드 저장소를 `이름:폴더` 형식으로 다루는 복사 도구. 아래에서 sudo가 붙은 명령은 1)과 5)의 두 개뿐이다.
+
+1) 설치
+
+```bash
+sudo apt install -y rclone
+```
+
+2) Google Drive 연결 (`gdrive` remote) — **노트북 화면의 터미널**에서 (브라우저가 열린다, sudo 없이)
+
+```bash
+rclone config create gdrive drive scope=drive.file
+```
+
+- Firefox에서 백업용 구글 계정으로 로그인 → 허용 → "Success"가 나오면 끝.
+- `scope=drive.file`: rclone이 **자기가 올린 파일만** 볼 수 있다. 드라이브의 다른 파일에는 손대지 못한다.
+- 마지막에 출력되는 `token = {...}`은 드라이브 접속 열쇠다. 사진 찍거나 공유하지 않는다.
+- 확인: `rclone about gdrive:` → 드라이브 용량이 나오면 성공.
+
+3) 암호화 층 (`finora-crypt` remote) — `gdrive:finora-backups` 폴더를 감싸서, 넣는 파일의 내용과 이름을 암호화한다
+
+```bash
+rclone config create finora-crypt crypt remote=gdrive:finora-backups \
+  password="$(openssl rand -base64 32)" password2="$(openssl rand -base64 32)" --obscure > /dev/null
+```
+
+- 비밀번호 2개를 무작위로 만들어 화면에 보이지 않게 바로 설정에 넣는다. `> /dev/null`: 출력(설정 내용)을 버린다.
+- 확인: 파일을 하나 넣어 보면 `rclone ls finora-crypt:`에는 원래 이름이, `rclone ls gdrive:finora-backups`에는 알아볼 수 없는 이름이 보인다.
+- ⚠️ **이 비밀번호를 잃으면 클라우드 백업은 아무도 풀 수 없다.** `~/.config/rclone/rclone.conf`(드라이브 열쇠 + 암호화 키)를 노트북 밖 안전한 곳(USB, 비밀번호 관리자 등)에 복사해 둔다. 저장소·메신저에는 올리지 않는다. 노트북이 고장 나면 다른 컴퓨터에 rclone을 설치하고 이 파일을 같은 위치에 두면 백업을 내려받을 수 있다.
+
+4) 백업 스크립트에 연결 — `.env` 맨 아래에 한 줄 추가하고 직접 한 번 실행
+
+```bash
+echo 'RCLONE_REMOTE=finora-crypt:' >> .env
+scripts/backup.sh                          # 마지막에 "클라우드 복사 완료"가 나오면 성공
+```
+
+- 클라우드에서 다시 받아 복원도 되는지 확인한다: `docs/operations.md` 백업 항목.
+
+5) 매일 자동 실행 (systemd timer)
+
+systemd timer: 리눅스의 예약 실행(cron과 비슷). `scripts/systemd/`의 두 파일을 짝으로 쓴다.
+`finora-backup.service`는 무엇을(`backup.sh` 한 번), `finora-backup.timer`는 언제(매일 03:30, 꺼져 있었으면 다음 부팅 때) 실행할지 정한다.
+내 계정용(user unit)으로 설치해서 관리·로그 확인에 sudo가 필요 없다.
+
+```bash
+sudo loginctl enable-linger $USER          # 로그인하지 않아도 내 계정의 타이머가 돌게 한다 (처음 한 번)
+mkdir -p ~/.config/systemd/user
+cp scripts/systemd/finora-backup.* ~/.config/systemd/user/
+systemctl --user daemon-reload             # 새 파일을 읽게 한다
+systemctl --user enable --now finora-backup.timer   # 켜고, 재부팅 후에도 켜지게
+systemctl --user list-timers               # NEXT에 다음 실행 시각(03:30)이 보이면 성공
+```
+
+- 지금 한 번 실행해 보기: `systemctl --user start finora-backup.service` (끝날 때까지 기다린다)
+- 실행 기록: `journalctl --user -u finora-backup.service` → `[backup] ... 끝`이 있으면 성공
+- `scripts/systemd/`의 파일을 고치면 다시 `cp`하고 `daemon-reload`한다.

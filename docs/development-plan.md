@@ -636,7 +636,7 @@ GET    /api/statistics/summary?from=2026-10-01&to=2026-10-31   기간 수입·�
 - [x] 7-2 프록시(Tailscale) 뒤 Forwarded Headers 설정: 안 하면 로그인 요청 횟수 제한이 모든 사용자를 프록시 IP 하나로 묶어 센다
 - [x] 7-3 운영용 Dockerfile + docker-compose + 운영 환경변수 예시 (DB Migration 적용 방법 포함)
 - [x] 7-4 DB 백업 스크립트(노트북 밖 암호화 복사) + 복원 테스트 스크립트 (`scripts/`, 사용법은 `docs/operations.md`). 매일 자동 실행·rclone 설정은 7-5
-- [ ] 7-5 노트북 준비 (`docs/laptop-setup.md`): Linux Mint 설치(결정 D21), 덮개 닫아도 안 꺼지게, 자동 보안 업데이트, Docker, Tailscale Funnel로 HTTPS 공개, rclone(crypt) 설정 + 백업 매일 자동 실행 (노트북 필요)
+- [x] 7-5 노트북 준비 (`docs/laptop-setup.md`): Linux Mint 설치(결정 D21), 덮개 닫아도 안 꺼지게, 자동 보안 업데이트, Docker, Tailscale Funnel로 HTTPS 공개, rclone(crypt → Google Drive) 설정 + 백업 매일 자동 실행(systemd user timer, `scripts/systemd/`). 클라우드에서 내려받은 백업으로 복원 테스트 성공
 
 완료 기준:
 - Android 폰에서 외부 네트워크로 접속·로그인 가능
