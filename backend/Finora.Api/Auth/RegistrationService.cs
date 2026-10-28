@@ -15,12 +15,13 @@ public class RegistrationService(FinoraDbContext db, UserManager<FinoraUser> use
     // 성공하면 빈 목록, 실패하면 "입력칸 이름 → 오류 문구들"을 돌려준다.
     public async Task<Dictionary<string, string[]>> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
     {
-        // 사용자가 소문자나 앞뒤 공백을 섞어 입력해도 같은 코드로 본다.
-        var code = request.InviteCode.Trim().ToUpperInvariant();
+        // 사용자가 소문자·공백을 섞거나 하이픈(-)을 빼고 입력해도 같은 코드로 본다. (하이픈은 읽기 쉽게 넣은 구분자일 뿐)
+        var code = NormalizeCode(request.InviteCode);
 
         // 먼저 확인해서, 코드가 틀렸을 때는 사용자를 만들지 않는다.
         // 존재하지 않는 코드와 이미 쓴 코드는 같은 문구로 응답한다. (어떤 코드가 있었는지 알려주지 않음)
-        var inviteAvailable = await db.InviteCodes.AnyAsync(x => x.Code == code && x.UsedAt == null, cancellationToken);
+        // DB의 코드도 하이픈을 빼고 비교한다. string.Replace는 EF Core가 SQL의 replace() 함수로 바꿔서 DB에서 계산한다.
+        var inviteAvailable = await db.InviteCodes.AnyAsync(x => x.Code.Replace("-", "") == code && x.UsedAt == null, cancellationToken);
         if (!inviteAvailable)
             return Error(nameof(RegisterRequest.InviteCode), InvalidInviteMessage);
 
@@ -39,7 +40,7 @@ public class RegistrationService(FinoraDbContext db, UserManager<FinoraUser> use
         // 두 사람이 같은 코드로 동시에 가입해도 한 명만 성공한다. (위의 AnyAsync 확인만으로는 막지 못함)
         var now = DateTime.UtcNow;
         var claimed = await db.InviteCodes
-            .Where(x => x.Code == code && x.UsedAt == null)
+            .Where(x => x.Code.Replace("-", "") == code && x.UsedAt == null)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(x => x.UsedAt, now)
                 .SetProperty(x => x.UsedByUserId, user.Id), cancellationToken);
@@ -53,6 +54,10 @@ public class RegistrationService(FinoraDbContext db, UserManager<FinoraUser> use
         await transaction.CommitAsync(cancellationToken);
         return [];
     }
+
+    // "k7qm-x2pd r9tb " → "K7QMX2PDR9TB": 하이픈과 공백을 모두 빼고 대문자로 바꾼다
+    private static string NormalizeCode(string input) =>
+        new string(input.Where(c => c != '-' && !char.IsWhiteSpace(c)).ToArray()).ToUpperInvariant();
 
     private static Dictionary<string, string[]> Error(string field, string message) => new() { [field] = [message] };
 

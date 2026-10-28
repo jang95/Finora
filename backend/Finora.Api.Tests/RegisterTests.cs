@@ -33,6 +33,19 @@ public class RegisterTests(PostgresApiFactory factory) : IClassFixture<PostgresA
     }
 
     [Fact]
+    public async Task Register_WithInviteWithoutHyphens_Succeeds()
+    {
+        var code = await CreateInviteAsync(); // 예) TEST-1A2B3C4D5
+
+        // 하이픈은 구분용일 뿐이라, 빼고 입력해도 같은 코드로 인식해야 한다.
+        var response = await RegisterAsync(code.Replace("-", ""), NewEmail(), "password1");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        await using var db = CreateDb();
+        Assert.NotNull((await db.InviteCodes.SingleAsync(x => x.Code == code)).UsedAt);
+    }
+
+    [Fact]
     public async Task Register_CreatesDefaultCategoriesHiddenByQueryFilter()
     {
         var email = NewEmail();
