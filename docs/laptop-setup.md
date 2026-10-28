@@ -44,6 +44,22 @@ sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.ta
 
 > 로그인하지 않아도 Docker와 Finora는 시스템 서비스로 시작된다. 정전 뒤 전원만 다시 켜면 된다.
 
+3) 와이파이가 자주 끊길 때 (유선 연결이면 건너뛴다)
+
+이 노트북의 Intel 6235 무선 카드(드라이버 `iwlwifi`)는 와이파이가 하루 수십 번 끊겼다 (로그에 `reason=4 locally_generated=1`). 끊긴 동안은 Finora 접속도 안 된다. 두 가지를 끄고 재부팅해서 해결했다.
+
+```bash
+# 와이파이 절전 끄기 (<와이파이 이름>: nmcli connection show 로 확인)
+sudo nmcli connection modify <와이파이 이름> 802-11-wireless.powersave 2
+# 드라이버 옵션: 블루투스 간섭 처리 끄기(bt_coex_active=0), 묶어 보내기 끄기(11n_disable=8)
+echo options iwlwifi bt_coex_active=0 11n_disable=8 | sudo tee /etc/modprobe.d/iwlwifi-finora.conf
+sudo reboot
+```
+
+- 확인: `cat /sys/module/iwlwifi/parameters/bt_coex_active` → `N`, `.../11n_disable` → `8`
+- 끊긴 횟수: `journalctl -b -u NetworkManager | grep -c "completed -> disconnected"` (`-b`: 이번 부팅 이후)
+- `/etc/modprobe.d/`의 파일은 root 소유여야 한다 (`tee`로 만들면 root 소유). 다른 곳에서 만든 파일을 `mv`로 옮기면 내 계정 소유로 남으니 `sudo chown root:root <파일>`.
+
 ## 3. Docker 설치
 
 Mint 기본 저장소의 Docker는 오래된 버전이라, Docker 공식 저장소에서 설치한다.
