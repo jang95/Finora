@@ -46,7 +46,7 @@ sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.ta
 
 3) 와이파이가 자주 끊길 때 (유선 연결이면 건너뛴다)
 
-이 노트북의 Intel 6235 무선 카드(드라이버 `iwlwifi`)는 와이파이가 하루 수십 번 끊겼다 (로그에 `reason=4 locally_generated=1`). 끊긴 동안은 Finora 접속도 안 된다. 두 가지를 끄고 재부팅해서 해결했다.
+이 노트북의 Intel 6235 무선 카드(드라이버 `iwlwifi`)는 와이파이가 하루 수십 번 끊겼다 (로그에 `reason=4 locally_generated=1`). 끊긴 동안은 Finora 접속도 안 된다. 아래 두 가지를 끄고 재부팅하니 하루 약 50번 → 약 20번으로 줄었다 (완전히 없어지지는 않음).
 
 ```bash
 # 와이파이 절전 끄기 (<와이파이 이름>: nmcli connection show 로 확인)
@@ -57,7 +57,8 @@ sudo reboot
 ```
 
 - 확인: `cat /sys/module/iwlwifi/parameters/bt_coex_active` → `N`, `.../11n_disable` → `8`
-- 끊긴 횟수: `journalctl -b -u NetworkManager | grep -c "completed -> disconnected"` (`-b`: 이번 부팅 이후)
+- 끊긴 횟수: `journalctl -b -u NetworkManager | grep -c "completed -> disconnected"` (`-b`: 이번 부팅 이후, 오늘만 보려면 `-b` 대신 `--since today`)
+- 남은 원인은 약한 신호다 (2.4GHz에서 약 -70 dBm, 주변 와이파이 10개 이상). USB 와이파이 동글로 5GHz에 붙여 봤지만 공유기와 멀어서 연결이 유지되지 않았다. 근본 해결은 노트북을 공유기 가까이 두거나 유선(LAN)으로 연결하는 것이다.
 - `/etc/modprobe.d/`의 파일은 root 소유여야 한다 (`tee`로 만들면 root 소유). 다른 곳에서 만든 파일을 `mv`로 옮기면 내 계정 소유로 남으니 `sudo chown root:root <파일>`.
 
 ## 3. Docker 설치
