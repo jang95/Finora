@@ -41,36 +41,81 @@ public class StatisticsService(FinoraDbContext db)
             new PeriodSummaryResponse(from, to, income, expense, income - expense, totalAssets));
     }
 
-    // 기간의 카테고리별 지출 (금액 큰 순)
-    public async Task<ServiceResult<List<CategoryExpenseResponse>>> GetCategoryExpensesAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken)
+    // 기간의 카테고리별 지출 (금액 큰 순). 한 번에 한 단계만 돌려준다. (결정 D23)
+    // parentId == null: 대분류별. 하위 분류의 지출도 자기 대분류에 합친다.
+    // parentId == 5: 5번 카테고리 바로 아래 단계별 + 5번에 직접 기록한 지출("세부 없음") 묶음.
+    public async Task<ServiceResult<List<CategoryExpenseResponse>>> GetCategoryExpensesAsync(
+        DateOnly from, DateOnly to, int? parentId, CancellationToken cancellationToken)
     {
         var error = ValidatePeriod<List<CategoryExpenseResponse>>(from, to);
         if (error is not null) return error;
 
-        // 카테고리별 합계는 DB에서 GROUP BY로 계산한다.
-        // new { ... }로 여러 값을 묶어서 그룹 기준(키)으로 쓸 수 있다 (익명 타입). 카테고리 Id와 이름이 같은 거래끼리 묶인다.
-        var totals = await db.Transactions
+        // 내 카테고리 전체. 사용자당 수십 개라 한 번에 불러와서 메모리에서 계층을 따라간다.
+        // Global Query Filter 때문에 남의 카테고리 Id를 parentId로 보내도 여기에 없어서 "찾을 수 없음"이 된다.
+        var categories = await db.Categories
+            .Select(c => new { c.Id, c.ParentId, c.Name })
+            .ToDictionaryAsync(c => c.Id, cancellationToken);
+        if (parentId is not null && !categories.ContainsKey(parentId.Value))
+            return ServiceResult<List<CategoryExpenseResponse>>.Invalid("parentId", "카테고리를 찾을 수 없습니다.");
+        // 하위 분류가 있는 카테고리 Id 모음 (눌러서 펼칠 수 있는지 표시용)
+        var parentIds = categories.Values.Where(c => c.ParentId is not null).Select(c => c.ParentId!.Value).ToHashSet();
+
+        // 1) 카테고리별 지출 합계는 DB에서 GROUP BY로 계산한다. (금액 계산은 decimal, 결정 D4)
+        var sums = await db.Transactions
             .Where(t => t.Date >= from && t.Date <= to && t.Type == TransactionType.Expense)
-            .GroupBy(t => new { t.CategoryId, t.Category!.Name })
-            .Select(g => new { g.Key.CategoryId, g.Key.Name, Amount = g.Sum(t => t.Amount) })
-            .OrderByDescending(x => x.Amount)
-            .ThenBy(x => x.Name) // 금액이 같으면 이름순 (매번 같은 순서로 보이게)
+            .GroupBy(t => t.CategoryId)
+            .Select(g => new { CategoryId = g.Key, Amount = g.Sum(t => t.Amount) })
             .ToListAsync(cancellationToken);
 
-        // 비율 = 카테고리 금액 ÷ 전체 지출 × 100. decimal로 계산하고 소수 첫째 자리까지 반올림한다.
+        // 2) 각 합계를 "이 단계의 어느 묶음에 들어가는지" 찾아서 더한다.
+        //    키: (묶음 카테고리 Id, 직접 기록 묶음인지). 같은 Id라도 "교통 (세부 없음)"과 하위 묶음은 다르다.
+        var buckets = new Dictionary<(int Id, bool IsDirect), decimal>();
+        foreach (var sum in sums)
+        {
+            var key = FindBucket(sum.CategoryId);
+            if (key is null) continue; // 이 단계 아래가 아닌 카테고리
+            buckets[key.Value] = buckets.GetValueOrDefault(key.Value) + sum.Amount;
+        }
+
+        // 비율 = 묶음 금액 ÷ 이 단계 전체 × 100. decimal로 계산하고 소수 첫째 자리까지 반올림한다.
         // MidpointRounding.AwayFromZero: 0.05처럼 딱 중간이면 올린다 (학교에서 배운 반올림).
         //   C# 기본값은 "짝수 쪽으로"(0.25 → 0.2)라서 직접 정해 준다.
-        var total = totals.Sum(x => x.Amount);
-        var expenses = totals
-            .Select(x => new CategoryExpenseResponse(
-                // 지출은 항상 카테고리가 있다 (TransactionService가 확인). 혹시 없으면 0 / "미분류"
-                x.CategoryId ?? 0,
-                x.Name ?? "미분류",
-                x.Amount,
-                total == 0 ? 0m : Math.Round(x.Amount / total * 100, 1, MidpointRounding.AwayFromZero)))
+        var total = buckets.Values.Sum();
+        var expenses = buckets
+            .Select(b => new CategoryExpenseResponse(
+                b.Key.Id,
+                // 지출은 항상 카테고리가 있다 (TransactionService가 확인). 혹시 없으면 Id 0 / "미분류"
+                categories.TryGetValue(b.Key.Id, out var c) ? c.Name : "미분류",
+                b.Value,
+                total == 0 ? 0m : Math.Round(b.Value / total * 100, 1, MidpointRounding.AwayFromZero),
+                HasChildren: !b.Key.IsDirect && parentIds.Contains(b.Key.Id),
+                b.Key.IsDirect))
+            .OrderByDescending(x => x.Amount)
+            .ThenBy(x => x.CategoryName) // 금액이 같으면 이름순 (매번 같은 순서로 보이게)
             .ToList();
 
         return ServiceResult<List<CategoryExpenseResponse>>.Ok(expenses);
+
+        // 거래의 카테고리에서 부모 쪽으로 올라가다가, "부모가 parentId인 카테고리"를 만나면 그것이 이 단계의 묶음이다.
+        //   예) parentId = 교통: 버스 → 대중교통(부모가 교통) → 묶음 = 대중교통
+        //   예) parentId = null: 버스 → 대중교통 → 교통(부모 없음) → 묶음 = 교통
+        // 거래 카테고리가 parentId 자신이면 "직접 기록" 묶음. 끝까지 올라가도 못 만나면 이 단계 아래가 아니다(null).
+        (int Id, bool IsDirect)? FindBucket(int? categoryId)
+        {
+            if (categoryId is null)
+                return parentId is null ? (0, false) : null; // 미분류는 대분류 단계에서만 보여준다
+            if (categoryId == parentId)
+                return (categoryId.Value, true);
+            // 최대 3단계라 세 번이면 맨 위에 닿는다. 잘못된 데이터로 끝없이 돌지 않게 횟수를 제한한다.
+            var currentId = categoryId;
+            for (var i = 0; i < 3 && currentId is not null && categories.TryGetValue(currentId.Value, out var current); i++)
+            {
+                if (current.ParentId == parentId)
+                    return (current.Id, false);
+                currentId = current.ParentId;
+            }
+            return null;
+        }
     }
 
     // 기간에 걸친 달마다의 수입/지출. 기간이 달 중간에서 시작·끝나면 그 달은 기간 안의 거래만 더한다.

@@ -8,12 +8,14 @@ export interface MonthlyTotal {
   expense: number
 }
 
-// 한 카테고리의 지출 합계와 기간 전체 지출 중 비율
+// 한 카테고리의 지출 합계(하위 분류 포함)와 이 단계 지출 중 비율. 한 번에 한 단계씩 받는다 (결정 D23)
 export interface CategoryExpense {
   categoryId: number
   categoryName: string
   amount: number
   ratio: number // 비율(%) 예: 35.5
+  hasChildren: boolean // 하위 분류가 있어서 눌러서 펼칠 수 있음
+  isDirect: boolean // 하위 분류 없이 상위 카테고리에 직접 기록한 지출 묶음 → "교통 (세부 없음)"
 }
 
 // 기간 요약 (GET /api/statistics/summary). from ~ to 양 끝 날짜 포함.

@@ -23,14 +23,16 @@ public class StatisticsController(StatisticsService statistics) : ControllerBase
         return result.Value!;
     }
 
-    // GET /api/statistics/categories?from=2026-10-01&to=2026-10-31 — 기간의 카테고리별 지출과 비율 (금액 큰 순)
+    // GET /api/statistics/categories?from=2026-10-01&to=2026-10-31 — 기간의 대분류별 지출과 비율 (금액 큰 순)
+    // &parentId=5를 붙이면 5번 카테고리 바로 아래 단계별 지출 (눌러서 펼치기, 결정 D23)
     [HttpGet("categories")]
     public async Task<ActionResult<List<CategoryExpenseResponse>>> GetCategoryExpenses(
         [FromQuery, BindRequired] DateOnly from,
         [FromQuery, BindRequired] DateOnly to,
+        [FromQuery] int? parentId,
         CancellationToken cancellationToken)
     {
-        var result = await statistics.GetCategoryExpensesAsync(from, to, cancellationToken);
+        var result = await statistics.GetCategoryExpensesAsync(from, to, parentId, cancellationToken);
         if (result.Errors is not null) return this.ValidationErrors(result.Errors);
         return result.Value!;
     }

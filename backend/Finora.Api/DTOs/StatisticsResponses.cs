@@ -13,8 +13,12 @@ public record PeriodSummaryResponse(DateOnly From, DateOnly To, decimal Income, 
 public record DashboardResponse(List<TransactionResponse> RecentTransactions);
 
 // GET /api/statistics/categories — 기간의 카테고리별 지출 (금액 큰 순). Frontend types/statistics.ts의 CategoryExpense와 같은 모양.
-// Ratio: 기간 전체 지출 중 비율(%). 소수 첫째 자리까지 반올림 (예: 35.48 → 35.5). 반올림 때문에 합이 정확히 100이 아닐 수 있다.
-public record CategoryExpenseResponse(int CategoryId, string CategoryName, decimal Amount, decimal Ratio);
+// 한 번에 한 단계만 돌려준다 (결정 D23). parentId가 없으면 대분류별, 있으면 그 카테고리 바로 아래 단계별.
+// Amount: 그 카테고리와 모든 하위 분류의 지출 합계 (교통 = 교통 + 대중교통 + 버스 + ...)
+// Ratio: 이 단계 합계 중 비율(%). 소수 첫째 자리까지 반올림 (예: 35.48 → 35.5). 반올림 때문에 합이 정확히 100이 아닐 수 있다.
+// HasChildren: 하위 분류가 있어서 눌러서 펼칠 수 있는지
+// IsDirect: 하위 분류 없이 상위 카테고리(parentId)에 직접 기록한 지출 묶음. 화면에서 "교통 (세부 없음)"으로 보여준다
+public record CategoryExpenseResponse(int CategoryId, string CategoryName, decimal Amount, decimal Ratio, bool HasChildren, bool IsDirect);
 
 // GET /api/statistics/monthly — 기간에 걸친 달마다의 수입/지출 (오래된 달이 앞). Frontend의 MonthlyTotal과 같은 모양.
 public record MonthlyTotalResponse(int Year, int Month, decimal Income, decimal Expense);

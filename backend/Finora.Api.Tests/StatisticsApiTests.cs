@@ -108,7 +108,7 @@ public class StatisticsApiTests(PostgresApiFactory factory) : IClassFixture<Post
         // 식비 351 / 400 = 87.75% → 87.8, 교통 49 / 400 = 12.25% → 12.3
         // (딱 중간(…5)은 올린다. C# 기본 반올림이었다면 12.2가 된다)
         Assert.Equal(
-            [new CategoryExpenseDto(food, "식비", 351m, 87.8m), new CategoryExpenseDto(transport, "교통", 49m, 12.3m)],
+            [new CategoryExpenseDto(food, "식비", 351m, 87.8m, false, false), new CategoryExpenseDto(transport, "교통", 49m, 12.3m, false, false)],
             expenses);
     }
 
@@ -119,6 +119,53 @@ public class StatisticsApiTests(PostgresApiFactory factory) : IClassFixture<Post
         await CreateAsync(client, "2026-10-15", "Income", salary, 1000);
 
         Assert.Empty(await CategoriesAsync(client, "2026-10-01", "2026-10-31"));
+    }
+
+    // 교통 › 대중교통 › 버스 / 교통 › 택시 계층에서 한 단계씩 펼치기 (결정 D23)
+    [Fact]
+    public async Task Categories_RollsUpSubcategories_AndDrillsDownOneLevelAtATime()
+    {
+        var (client, food, _) = await NewUserAsync();
+        var transport = await CategoryIdAsync(client, "교통");
+        var publicTransit = await CreateCategoryAsync(client, "대중교통", transport);
+        var bus = await CreateCategoryAsync(client, "버스", publicTransit);
+        var taxi = await CreateCategoryAsync(client, "택시", transport);
+        await CreateAsync(client, "2026-10-01", "Expense", bus, 300);
+        await CreateAsync(client, "2026-10-02", "Expense", publicTransit, 100); // 대중교통에 직접 (버스·지하철 구분 없이)
+        await CreateAsync(client, "2026-10-03", "Expense", taxi, 400);
+        await CreateAsync(client, "2026-10-04", "Expense", transport, 200);     // 교통에 직접
+        await CreateAsync(client, "2026-10-05", "Expense", food, 1000);
+
+        var roots = await CategoriesAsync(client, "2026-10-01", "2026-10-31");
+        var underTransport = await CategoriesAsync(client, "2026-10-01", "2026-10-31", transport);
+        var underTransit = await CategoriesAsync(client, "2026-10-01", "2026-10-31", publicTransit);
+
+        // 대분류: 교통 = 300 + 100 + 400 + 200 = 1000 (하위 포함). 금액이 같으면 이름순 (교통 < 식비)
+        Assert.Equal(
+            [new CategoryExpenseDto(transport, "교통", 1000m, 50m, true, false), new CategoryExpenseDto(food, "식비", 1000m, 50m, false, false)],
+            roots);
+        // 교통 아래: 택시 400, 대중교통 400(버스 300 + 직접 100), 교통 직접 200. 비율은 교통 합계 1000 기준
+        Assert.Equal(
+            [
+                new CategoryExpenseDto(publicTransit, "대중교통", 400m, 40m, true, false),
+                new CategoryExpenseDto(taxi, "택시", 400m, 40m, false, false),
+                new CategoryExpenseDto(transport, "교통", 200m, 20m, false, true),
+            ],
+            underTransport);
+        // 대중교통 아래: 버스 300, 대중교통 직접 100. 버스는 더 펼칠 하위 분류가 없다
+        Assert.Equal(
+            [new CategoryExpenseDto(bus, "버스", 300m, 75m, false, false), new CategoryExpenseDto(publicTransit, "대중교통", 100m, 25m, false, true)],
+            underTransit);
+    }
+
+    [Fact]
+    public async Task Categories_WithUnknownParent_Returns400()
+    {
+        var (client, _, _) = await NewUserAsync();
+
+        var response = await client.GetAsync("/api/statistics/categories?from=2026-10-01&to=2026-10-31&parentId=999999");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     // ---- 월별 합계 ----
@@ -168,15 +215,24 @@ public class StatisticsApiTests(PostgresApiFactory factory) : IClassFixture<Post
 
     // ---- 테스트 도우미 ----
 
-    private record CategoryExpenseDto(int CategoryId, string CategoryName, decimal Amount, decimal Ratio);
+    private record CategoryExpenseDto(int CategoryId, string CategoryName, decimal Amount, decimal Ratio, bool HasChildren, bool IsDirect);
 
     private record MonthlyTotalDto(int Year, int Month, decimal Income, decimal Expense);
 
     private static async Task<int> CategoryIdAsync(HttpClient client, string name) =>
         (await client.GetFromJsonAsync<List<CategoryDto>>("/api/categories"))!.Single(c => c.Name == name).Id;
 
-    private static async Task<List<CategoryExpenseDto>> CategoriesAsync(HttpClient client, string from, string to) =>
-        (await client.GetFromJsonAsync<List<CategoryExpenseDto>>($"/api/statistics/categories?from={from}&to={to}"))!;
+    // parentId가 있으면 그 카테고리 바로 아래 단계
+    private static async Task<List<CategoryExpenseDto>> CategoriesAsync(HttpClient client, string from, string to, int? parentId = null) =>
+        (await client.GetFromJsonAsync<List<CategoryExpenseDto>>(
+            $"/api/statistics/categories?from={from}&to={to}" + (parentId is null ? "" : $"&parentId={parentId}")))!;
+
+    private static async Task<int> CreateCategoryAsync(HttpClient client, string name, int parentId)
+    {
+        var response = await client.PostAsJsonAsync("/api/categories", new { name, parentId });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<CategoryDto>())!.Id;
+    }
 
     private static async Task<List<MonthlyTotalDto>> MonthlyAsync(HttpClient client, string from, string to) =>
         (await client.GetFromJsonAsync<List<MonthlyTotalDto>>($"/api/statistics/monthly?from={from}&to={to}"))!;

@@ -197,6 +197,19 @@ public class UserIsolationTests(PostgresApiFactory factory) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task Statistics_CannotDrillDownIntoOtherUsersCategory()
+    {
+        var clientA = await RegisterAndLoginAsync();
+        var clientB = await RegisterAndLoginAsync();
+        var categoryOfA = (await clientA.GetFromJsonAsync<List<CategoryDto>>("/api/categories"))![0];
+
+        // B가 A의 카테고리 Id로 "펼치기"를 요청한다. B에게는 없는 카테고리로 보여야 한다.
+        var response = await clientB.GetAsync($"/api/statistics/categories?from=2026-10-01&to=2026-10-31&parentId={categoryOfA.Id}");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Dashboard_ShowsOnlyOwnRecentTransactions()
     {
         var clientA = await RegisterAndLoginAsync();
