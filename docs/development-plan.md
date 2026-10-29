@@ -653,7 +653,7 @@ GET    /api/statistics/summary?from=2026-10-01&to=2026-10-31   기간 수입·�
 
 1. 카테고리 3단계 계층 (결정 D23)
    - [x] Backend: `ParentId` + Migration, 이름 중복 규칙(대분류끼리·같은 부모 아래끼리)
-   - [ ] Backend API: 하위 분류 추가(최대 3단계, 내 카테고리 아래에만), 하위 분류가 있으면 삭제 불가, 자동 테스트
+   - [x] Backend API: 하위 분류 추가(최대 3단계, 내 카테고리 아래에만), 하위 분류가 있으면 삭제 불가, 자동 테스트
    - [ ] 설정 화면: 카테고리 트리, 하위 분류 추가
    - [ ] 거래 등록·수정: 계층에서 고르기 (선택하면 전체 경로 표시), 목록은 가장 아래 이름
    - [ ] 통계: 대분류 합계(하위 포함) → 눌러서 펼치기 (Backend decimal)
@@ -842,6 +842,7 @@ AI 분석 (Backend에서 호출)
 | `README.md` | 프로젝트 소개, 실행 방법 | 사람 |
 | `docs/development-plan.md` | 이 문서. 전체 계획, 결정 기록, 진행 현황 | 사람 + Claude |
 | `docs/` 기타 | 내용이 커지면 이 문서에서 분리 (예: `database.md`, `api.md`, `deployment.md`) | 사람 + Claude |
+| `docs/learning-guide.md` | 개념 설명 규칙 (무엇을 어디에 설명하나, 생략할 항목). `CLAUDE.md`에서 불러온다 | Claude + 사람 |
 | `docs/learning/` | React/TS/C# 학습 노트 (선택) | 사람 |
 
 규칙:
