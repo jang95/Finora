@@ -1,7 +1,7 @@
 import { apiRequest } from '@/services/api'
 import type { Category, NewCategory } from '@/types/category'
 
-// 카테고리 API (Phase 5). 규칙 검사(같은 종류 안 이름 중복, 내 카테고리인지)는 Backend가 한다.
+// 카테고리 API (Phase 5). 규칙 검사(같은 부모 아래 이름 중복, 최대 3단계, 내 카테고리인지)는 Backend가 한다.
 // 실패하면 ApiError를 던지고, message에 화면에 보여줄 문구가 들어 있다.
 
 // TanStack Query가 이 데이터를 캐시에 보관할 때 쓰는 이름표(query key).
@@ -21,7 +21,7 @@ export async function renameCategory(id: number, name: string): Promise<Category
   return apiRequest<Category>(`/api/categories/${id}`, { method: 'PUT', body: { name } })
 }
 
-// 삭제. 거래에서 쓰고 있는 카테고리는 Backend가 거절한다. (거래 API가 생기는 Phase 5-2부터)
+// 삭제. 거래에서 쓰고 있거나 하위 분류가 있는 카테고리는 Backend가 거절한다(409).
 export async function deleteCategory(id: number): Promise<void> {
   await apiRequest<void>(`/api/categories/${id}`, { method: 'DELETE' })
 }

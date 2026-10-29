@@ -39,8 +39,9 @@ function SettingsPage() {
   function sectionProps(type: CategoryType) {
     return {
       categories: (categories ?? []).filter((c) => c.type === type),
-      onAdd: async (name: string) => {
-        await addCategory({ name, type })
+      // parentId가 있으면 하위 분류. 종류(type)는 Backend가 상위 카테고리를 따라 정한다
+      onAdd: async (name: string, parentId?: number) => {
+        await addCategory({ name, type, parentId })
         await refresh()
       },
       onRename: async (id: number, name: string) => {
