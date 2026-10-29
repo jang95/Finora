@@ -38,6 +38,9 @@ namespace Finora.Api.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<int?>("ParentId")
+                        .HasColumnType("integer");
+
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer");
 
@@ -55,8 +58,12 @@ namespace Finora.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "Type", "Name")
+                    b.HasIndex("ParentId");
+
+                    b.HasIndex("UserId", "Type", "ParentId", "Name")
                         .IsUnique();
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("UserId", "Type", "ParentId", "Name"), false);
 
                     b.ToTable("Categories");
                 });
@@ -340,11 +347,18 @@ namespace Finora.Api.Data.Migrations
 
             modelBuilder.Entity("Finora.Api.Data.Entities.Category", b =>
                 {
+                    b.HasOne("Finora.Api.Data.Entities.Category", "Parent")
+                        .WithMany()
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("Finora.Api.Data.Entities.FinoraUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Parent");
                 });
 
             modelBuilder.Entity("Finora.Api.Data.Entities.InviteCode", b =>

@@ -46,8 +46,16 @@ public class FinoraDbContext(DbContextOptions<FinoraDbContext> options, CurrentU
             e.Property(x => x.Name).HasMaxLength(50);
             // enum을 숫자(0, 1)가 아니라 "Income"/"Expense" 문자열로 저장한다. DB를 직접 봐도 뜻을 알 수 있다.
             e.Property(x => x.Type).HasConversion<string>().HasMaxLength(16);
-            // 한 사용자 안에서 같은 종류·같은 이름의 카테고리는 하나만 (다른 사용자와는 겹쳐도 된다)
-            e.HasIndex(x => new { x.UserId, x.Type, x.Name }).IsUnique();
+            // 한 사용자 안에서 같은 종류·같은 부모 아래에 같은 이름은 하나만 (다른 사용자와는 겹쳐도 된다, 결정 D23)
+            // 대분류는 ParentId가 null이다. 보통 고유 인덱스는 null끼리를 "서로 다른 값"으로 봐서 대분류 이름이 겹쳐도 통과시킨다.
+            // AreNullsDistinct(false) = PostgreSQL의 NULLS NOT DISTINCT: null끼리도 같은 값으로 보고 중복을 막는다.
+            e.HasIndex(x => new { x.UserId, x.Type, x.ParentId, x.Name }).IsUnique().AreNullsDistinct(false);
+            // 하위 분류가 있는 카테고리는 지울 수 없다. CategoryService도 먼저 확인하지만, DB가 최종으로 막는다.
+            // NoAction인 이유는 아래 Transaction → Category와 같다 (사용자 삭제 Cascade 때 순서 문제).
+            e.HasOne(x => x.Parent)
+                .WithMany()
+                .HasForeignKey(x => x.ParentId)
+                .OnDelete(DeleteBehavior.NoAction);
             // 사용자가 삭제되면 그 사용자의 카테고리도 함께 삭제한다(Cascade).
             e.HasOne<FinoraUser>()
                 .WithMany()

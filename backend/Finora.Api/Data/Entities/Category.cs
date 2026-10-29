@@ -17,8 +17,16 @@ public class Category
     // 소유자 (AspNetUsers.Id). 항상 서버가 인증 정보로 채운다.
     public string UserId { get; set; } = null!;
 
+    // 상위 카테고리 Id. 대분류는 null, 중분류는 대분류 Id, 소분류는 중분류 Id (최대 3단계, 결정 D23)
+    // 같은 Categories 테이블의 다른 행을 가리킨다 = 자기 참조(self-reference). 단계마다 테이블을 따로 만들지 않는다.
+    public int? ParentId { get; set; }
+
+    // 탐색 속성: c.Parent.Name처럼 상위 카테고리를 따라갈 수 있다.
+    public Category? Parent { get; set; }
+
     public string Name { get; set; } = null!;
 
+    // 하위 분류는 항상 대분류와 같은 종류다. (서버가 대분류에서 복사해 채운다)
     public CategoryType Type { get; set; }
 
     // 목록에 보여 줄 순서 (작은 값이 먼저)
