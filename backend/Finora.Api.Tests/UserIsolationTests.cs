@@ -106,6 +106,24 @@ public class UserIsolationTests(PostgresApiFactory factory) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task Categories_CannotCreateSubcategoryUnderOtherUsersCategory()
+    {
+        var clientA = await RegisterAndLoginAsync();
+        var clientB = await RegisterAndLoginAsync();
+        var categoryOfA = (await clientA.GetFromJsonAsync<List<CategoryDto>>("/api/categories"))![0];
+
+        // B가 A의 카테고리 Id를 상위 카테고리로 보낸다. B에게는 "없는 카테고리"로 보여야 한다.
+        var response = await clientB.PostAsJsonAsync("/api/categories", new { name = "B의 하위", parentId = categoryOfA.Id });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(body.GetProperty("errors").TryGetProperty("ParentId", out _));
+        // A의 목록에도, B의 목록에도 생기지 않았다.
+        Assert.DoesNotContain((await clientA.GetFromJsonAsync<List<CategoryDto>>("/api/categories"))!, c => c.Name == "B의 하위");
+        Assert.DoesNotContain((await clientB.GetFromJsonAsync<List<CategoryDto>>("/api/categories"))!, c => c.Name == "B의 하위");
+    }
+
+    [Fact]
     public async Task Transactions_OtherUserCannotSeeUpdateOrDelete()
     {
         var clientA = await RegisterAndLoginAsync();

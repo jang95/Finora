@@ -13,7 +13,7 @@ public class CategoryApiTests(PostgresApiFactory factory) : IClassFixture<Postgr
     private readonly WebApplicationFactory<Program> _server =
         factory.WithWebHostBuilder(b => b.UseSetting("Auth:LoginPermitPerMinute", "1000"));
 
-    private record CategoryDto(int Id, string Name, string Type);
+    private record CategoryDto(int Id, string Name, string Type, int? ParentId);
 
     [Fact]
     public async Task Create_AddsCategoryAtEndOfSameType()
@@ -47,7 +47,7 @@ public class CategoryApiTests(PostgresApiFactory factory) : IClassFixture<Postgr
     {
         var client = await _server.RegisterAndLoginAsync();
 
-        // 지출에 있는 "식비"를 수입 쪽에 만드는 것은 허용 (고유 조건은 종류+이름)
+        // 지출에 있는 "식비"를 수입 쪽에 만드는 것은 허용 (고유 조건은 종류+상위 카테고리+이름)
         var response = await client.PostAsJsonAsync("/api/categories", new { name = "식비", type = "Income" });
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -116,7 +116,106 @@ public class CategoryApiTests(PostgresApiFactory factory) : IClassFixture<Postgr
         Assert.Equal(HttpStatusCode.NotFound, again.StatusCode); // 이미 지운 것은 404
     }
 
+    // ---- 하위 분류 (결정 D23) ----
+
+    [Fact]
+    public async Task CreateChild_FollowsParentType_AndIsAddedUnderParent()
+    {
+        var client = await _server.RegisterAndLoginAsync();
+        var transport = (await GetAllAsync(client)).Single(c => c.Name == "교통" && c.ParentId == null);
+
+        // 지출 대분류 아래에 type = Income을 보내도 상위와 같은 Expense로 만든다.
+        var first = await CreateAsync(client, "대중교통", transport.Id, type: "Income");
+        var second = await CreateAsync(client, "택시", transport.Id);
+
+        Assert.Equal(transport.Id, first.ParentId);
+        Assert.Equal("Expense", first.Type);
+        // 같은 부모 아래에서 추가한 순서대로 나온다.
+        var children = (await GetAllAsync(client)).Where(c => c.ParentId == transport.Id).Select(c => c.Name);
+        Assert.Equal(["대중교통", "택시"], children);
+        Assert.Equal(transport.Id, second.ParentId);
+    }
+
+    [Fact]
+    public async Task CreateChild_UpToThreeLevels_FourthReturns400()
+    {
+        var client = await _server.RegisterAndLoginAsync();
+        var level1 = (await GetAllAsync(client)).Single(c => c.Name == "교통" && c.ParentId == null);
+        var level2 = await CreateAsync(client, "대중교통", level1.Id);
+        var level3 = await CreateAsync(client, "버스", level2.Id);
+
+        var level4 = await client.PostAsJsonAsync("/api/categories", new { name = "마을버스", parentId = level3.Id });
+
+        Assert.Equal(level2.Id, level3.ParentId);
+        await AssertFieldErrorAsync(level4, "ParentId");
+    }
+
+    [Fact]
+    public async Task CreateChild_WithUnknownParent_Returns400()
+    {
+        var client = await _server.RegisterAndLoginAsync();
+
+        var response = await client.PostAsJsonAsync("/api/categories", new { name = "버스", parentId = 999999 });
+
+        await AssertFieldErrorAsync(response, "ParentId");
+    }
+
+    [Fact]
+    public async Task CreateChild_DuplicateNameUnderSameParent_Returns400_ButOtherParentIsAllowed()
+    {
+        var client = await _server.RegisterAndLoginAsync();
+        var all = await GetAllAsync(client);
+        var transport = all.Single(c => c.Name == "교통");
+        var culture = all.Single(c => c.Name == "문화·여가");
+        await CreateAsync(client, "기차", transport.Id);
+
+        var sameParent = await client.PostAsJsonAsync("/api/categories", new { name = "기차", parentId = transport.Id });
+        var otherParent = await client.PostAsJsonAsync("/api/categories", new { name = "기차", parentId = culture.Id });
+        // 대분류 이름과 같은 이름의 하위 분류도 위치가 다르므로 허용한다.
+        var sameAsRoot = await client.PostAsJsonAsync("/api/categories", new { name = "식비", parentId = transport.Id });
+
+        await AssertFieldErrorAsync(sameParent, "Name");
+        Assert.Equal(HttpStatusCode.Created, otherParent.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, sameAsRoot.StatusCode);
+    }
+
+    [Fact]
+    public async Task RenameChild_ToSiblingName_Returns400()
+    {
+        var client = await _server.RegisterAndLoginAsync();
+        var transport = (await GetAllAsync(client)).Single(c => c.Name == "교통");
+        await CreateAsync(client, "택시", transport.Id);
+        var bus = await CreateAsync(client, "버스", transport.Id);
+
+        var response = await client.PutAsJsonAsync($"/api/categories/{bus.Id}", new { name = "택시" });
+
+        await AssertFieldErrorAsync(response, "Name");
+    }
+
+    [Fact]
+    public async Task Delete_WithChildren_Returns409_UntilChildrenAreDeleted()
+    {
+        var client = await _server.RegisterAndLoginAsync();
+        var transport = (await GetAllAsync(client)).Single(c => c.Name == "교통");
+        var child = await CreateAsync(client, "택시", transport.Id);
+
+        var blocked = await client.DeleteAsync($"/api/categories/{transport.Id}");
+        var deleteChild = await client.DeleteAsync($"/api/categories/{child.Id}");
+        var deleteParent = await client.DeleteAsync($"/api/categories/{transport.Id}");
+
+        Assert.Equal(HttpStatusCode.Conflict, blocked.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, deleteChild.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, deleteParent.StatusCode);
+    }
+
     // ---- 테스트 도우미 ----
+
+    private static async Task<CategoryDto> CreateAsync(HttpClient client, string name, int parentId, string? type = null)
+    {
+        var response = await client.PostAsJsonAsync("/api/categories", new { name, type, parentId });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<CategoryDto>())!;
+    }
 
     private static async Task<List<CategoryDto>> GetAllAsync(HttpClient client) =>
         (await client.GetFromJsonAsync<List<CategoryDto>>("/api/categories"))!;
