@@ -26,6 +26,7 @@ import { FEATURES } from '@/config/features'
 import type { Account } from '@/types/asset'
 import type { Category } from '@/types/category'
 import type { NewTransaction, Transaction, TransactionType } from '@/types/transaction'
+import { flattenCategoryTree, getCategoryPath } from '@/utils/categoryTree'
 import { getToday } from '@/utils/yearMonth'
 
 // 종류 선택 버튼 목록. 배열로 두고 map으로 그리면 버튼 3개를 같은 코드로 만들 수 있다.
@@ -114,8 +115,11 @@ function TransactionForm({
   const [error, setError] = useState('')
 
   const isTransfer = type === 'Transfer'
-  // 지금 고른 종류(수입/지출)의 카테고리만 보여준다 (파생 값). 이체는 카테고리가 없다.
-  const categoryOptions = categories.filter((c) => c.type === type)
+  // 지금 고른 종류(수입/지출)의 카테고리만, 부모 바로 아래에 자식이 오는 트리 순서로 보여준다 (파생 값). 이체는 카테고리가 없다.
+  // 대분류·중분류도 고를 수 있다 (결정 D23)
+  const categoryOptions = flattenCategoryTree(categories.filter((c) => c.type === type))
+  // 고른 카테고리의 전체 경로. 목록에는 가장 아래 이름만 보이므로, 여기서 어디에 속한 것인지 확인한다
+  const categoryPath = categoryId === '' ? [] : getCategoryPath(categories, Number(categoryId))
   // 같은 계좌로 이체할 수는 없다. 둘 다 고른 뒤에만 오류로 본다 (고르는 중에는 빈 값이라 같을 수 있음)
   const isSameAccount = isTransfer && accountId !== '' && accountId === toAccountId
 
@@ -230,12 +234,18 @@ function TransactionForm({
           >
             {/* value=""인 첫 옵션 + required: 아무것도 안 고르면 제출이 막힌다 */}
             <NativeSelectOption value="">선택하세요</NativeSelectOption>
-            {categoryOptions.map((c) => (
-              <NativeSelectOption key={c.id} value={c.id}>
-                {c.name}
+            {/* 기본 선택창(<select>)의 항목은 글자만 넣을 수 있어서, 들여쓰기는 공백 글자로 한다.
+                '\u00A0'(줄바꿈 없는 공백): 보통 공백은 HTML이 여러 개를 하나로 합쳐 버리지만 이 공백은 그대로 남는다 */}
+            {categoryOptions.map(({ category, depth }) => (
+              <NativeSelectOption key={category.id} value={category.id}>
+                {depth === 1 ? category.name : `${'\u00A0'.repeat((depth - 1) * 4)}└ ${category.name}`}
               </NativeSelectOption>
             ))}
           </NativeSelect>
+          {/* 하위 분류를 골랐을 때만 경로를 보여준다 (대분류만 고르면 경로가 이름과 같다) */}
+          {categoryPath.length > 1 && (
+            <p className="text-sm text-muted-foreground">{categoryPath.join(' › ')}</p>
+          )}
         </div>
       )}
 

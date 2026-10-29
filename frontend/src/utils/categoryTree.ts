@@ -1,4 +1,4 @@
-import type { Category } from '@/types/category'
+import { MAX_CATEGORY_DEPTH, type Category } from '@/types/category'
 
 // 카테고리 계층(대분류 › 중분류 › 소분류) 계산. 설정·거래 입력·통계 화면이 같이 쓴다. (결정 D23)
 
@@ -35,4 +35,18 @@ export function flattenCategoryTree(categories: Category[]): CategoryRow[] {
   }
   visit(null, 1)
   return rows
+}
+
+// 카테고리의 전체 경로 이름. 예: ['교통', '대중교통', '버스']. 못 찾으면 빈 배열
+// 부모를 따라 위로 올라가면서 앞에 붙인다. 최대 3단계지만, 잘못된 데이터로 끝없이 돌지 않게 횟수를 제한한다.
+export function getCategoryPath(categories: Category[], id: number): string[] {
+  const byId = new Map(categories.map((c) => [c.id, c]))
+  const path: string[] = []
+  let current = byId.get(id)
+  while (current !== undefined && path.length < MAX_CATEGORY_DEPTH) {
+    // unshift: 배열 맨 앞에 넣는다 (push는 맨 뒤). 위로 올라가며 넣으니 대분류가 맨 앞에 온다
+    path.unshift(current.name)
+    current = current.parentId === null ? undefined : byId.get(current.parentId)
+  }
+  return path
 }
