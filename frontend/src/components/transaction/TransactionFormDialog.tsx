@@ -27,6 +27,7 @@ import type { Account } from '@/types/asset'
 import type { Category } from '@/types/category'
 import type { NewTransaction, Transaction, TransactionType } from '@/types/transaction'
 import { flattenCategoryTree, getCategoryPath } from '@/utils/categoryTree'
+import { formatAmount } from '@/utils/format'
 import { getToday } from '@/utils/yearMonth'
 
 // 종류 선택 버튼 목록. 배열로 두고 map으로 그리면 버튼 3개를 같은 코드로 만들 수 있다.
@@ -203,18 +204,21 @@ function TransactionForm({
         <Label htmlFor="amount">금액</Label>
         {/* type="number" 대신 text + inputMode="numeric": 모바일에서 숫자 키패드가 뜨고,
             number 입력칸의 마우스 휠로 값이 바뀌는 문제·'e' 입력 허용 문제가 없다.
-            pattern: 1 이상의 정수만 허용 (0으로 시작 불가). 맞지 않으면 브라우저가 제출을 막는다. */}
+            pattern: 1 이상의 정수만 허용 (0으로 시작 불가). 맞지 않으면 브라우저가 제출을 막는다.
+            화면에는 3자리마다 쉼표를 넣어 보여 주므로(아래 value) pattern도 쉼표를 허용한다. */}
         <Input
           id="amount"
           inputMode="numeric"
           autoComplete="off"
-          pattern="[1-9][0-9]*"
-          maxLength={13}
+          pattern="[1-9][0-9,]*"
           placeholder="0"
           required
-          value={amount}
-          // replace(/\D/g, ''): 숫자가 아닌 글자(\D)를 모두(g) 지운다
-          onChange={(event) => setAmount(event.target.value.replace(/\D/g, ''))}
+          // state(amount)에는 숫자만 두고, 입력칸에 보이는 값만 포맷한다. "52340000" → "52,340,000"
+          // 값(state)과 표시를 나누면 저장할 때 Number(amount)를 그대로 쓸 수 있다. 빈 값은 placeholder가 보이게 ''로 둔다.
+          value={amount === '' ? '' : formatAmount(Number(amount))}
+          // replace(/\D/g, ''): 숫자가 아닌 글자(\D)를 모두(g) 지운다. 쉼표도 여기서 지워진다.
+          // slice(0, 13): 쉼표가 붙으면 maxLength로는 자릿수를 셀 수 없어서 숫자 13자리로 직접 자른다.
+          onChange={(event) => setAmount(event.target.value.replace(/\D/g, '').slice(0, 13))}
         />
       </div>
 
