@@ -17,6 +17,8 @@ public class FinoraDbContext(DbContextOptions<FinoraDbContext> options, CurrentU
     public DbSet<InviteCode> InviteCodes => Set<InviteCode>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
+    public DbSet<Saving> Savings => Set<Saving>();
+    public DbSet<SavingEntry> SavingEntries => Set<SavingEntry>();
 
     // Global Query Filter에서 쓰는 현재 사용자 Id.
     // DbContext의 속성으로 두어야 EF Core가 쿼리를 실행할 때마다 그 시점의 값을 읽는다. (모델은 한 번만 만들어지고 재사용되므로)
@@ -87,6 +89,64 @@ public class FinoraDbContext(DbContextOptions<FinoraDbContext> options, CurrentU
                 .WithMany()
                 .HasForeignKey(x => x.CategoryId)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            e.HasQueryFilter(x => x.UserId == CurrentUserId);
+        });
+
+        // 저금 (결정 D24). 금액은 numeric(18,2), 비율(%)은 소수 셋째·둘째 자리까지
+        modelBuilder.Entity<Saving>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(50);
+            e.Property(x => x.BankName).HasMaxLength(50);
+            e.Property(x => x.Memo).HasMaxLength(100);
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.InterestMethod).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.PaymentType).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.TargetAmount).HasPrecision(18, 2);
+            e.Property(x => x.PlannedAmount).HasPrecision(18, 2);
+            // numeric(6,3): 연이율 3.555%처럼 소수 셋째 자리까지 (최대 999.999)
+            e.Property(x => x.InterestRate).HasPrecision(6, 3);
+            // numeric(5,2): 세율 15.40%
+            e.Property(x => x.TaxRate).HasPrecision(5, 2);
+            e.HasIndex(x => x.UserId);
+            e.HasOne<FinoraUser>()
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasQueryFilter(x => x.UserId == CurrentUserId);
+        });
+
+        modelBuilder.Entity<SavingEntry>(e =>
+        {
+            e.Property(x => x.Amount).HasPrecision(18, 2);
+            e.Property(x => x.Type).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Memo).HasMaxLength(100);
+            // 기간별 저금 합계("이번 달 저금")는 "내 기록 중 이 기간"이라 거래와 같은 (UserId, Date) 인덱스
+            e.HasIndex(x => new { x.UserId, x.Date });
+            // 기존 금액(Opening)은 저금 하나에 1건만. HasFilter: 조건에 맞는 행만 들어가는 부분(partial) 인덱스.
+            // 입금·출금은 여러 건이어도 되고, Opening끼리만 SavingId가 겹치지 않게 DB가 막는다.
+            e.HasIndex(x => x.SavingId)
+                .IsUnique()
+                .HasFilter("\"Type\" = 'Opening'")
+                .HasDatabaseName("IX_SavingEntries_SavingId_Opening");
+            // 가계부 거래 하나는 이자 기록 하나에만 연결된다
+            e.HasIndex(x => x.TransactionId).IsUnique();
+            e.HasOne<FinoraUser>()
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // 저금을 지우면 그 기록도 함께 지운다
+            e.HasOne(x => x.Saving)
+                .WithMany()
+                .HasForeignKey(x => x.SavingId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // 연결된 가계부 거래가 지워지면 기록은 남기고 연결만 끊는다(SetNull). 같이 지우는 규칙은 서비스에서 처리한다
+            e.HasOne(x => x.Transaction)
+                .WithMany()
+                .HasForeignKey(x => x.TransactionId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             e.HasQueryFilter(x => x.UserId == CurrentUserId);
         });
