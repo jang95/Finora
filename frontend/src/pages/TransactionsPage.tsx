@@ -38,7 +38,8 @@ function TransactionsPage() {
   // useState(getThisMonth): 함수 자체를 넘기면 처음 한 번만 실행된다 (getThisMonth()로 넘기면 그릴 때마다 실행됨)
   const [yearMonth, setYearMonth] = useState<YearMonth>(getThisMonth)
   const { year, month } = yearMonth
-  const [view, setView] = useState<ViewMode>('list')
+  // 처음 열 때 보이는 탭. 달력으로 시작한다 (탭 순서는 그대로, 처음 값만 바꿈)
+  const [view, setView] = useState<ViewMode>('calendar')
 
   // [useQuery] 데이터 불러오기 (설명은 lib/queryClient.ts, SettingsPage 참고)
   // 이름표에 year, month가 들어 있어서, 월을 바꾸면 이름표가 달라져 그 달 데이터를 새로 불러온다.
