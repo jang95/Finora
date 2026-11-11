@@ -19,6 +19,7 @@ public class FinoraDbContext(DbContextOptions<FinoraDbContext> options, CurrentU
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Saving> Savings => Set<Saving>();
     public DbSet<SavingEntry> SavingEntries => Set<SavingEntry>();
+    public DbSet<DashboardLayout> DashboardLayouts => Set<DashboardLayout>();
 
     // Global Query Filter에서 쓰는 현재 사용자 Id.
     // DbContext의 속성으로 두어야 EF Core가 쿼리를 실행할 때마다 그 시점의 값을 읽는다. (모델은 한 번만 만들어지고 재사용되므로)
@@ -147,6 +148,22 @@ public class FinoraDbContext(DbContextOptions<FinoraDbContext> options, CurrentU
                 .WithMany()
                 .HasForeignKey(x => x.TransactionId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            e.HasQueryFilter(x => x.UserId == CurrentUserId);
+        });
+
+        // 위젯 배치 (결정 D27)
+        modelBuilder.Entity<DashboardLayout>(e =>
+        {
+            e.Property(x => x.Page).HasMaxLength(32);
+            // jsonb: PostgreSQL의 JSON 컬럼. 문자열로 저장하지만 JSON 형식이 아니면 DB가 거부하고, 필요하면 안을 조건으로 조회할 수도 있다
+            e.Property(x => x.LayoutJson).HasColumnType("jsonb");
+            // 사용자·화면당 배치는 하나만
+            e.HasIndex(x => new { x.UserId, x.Page }).IsUnique();
+            e.HasOne<FinoraUser>()
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             e.HasQueryFilter(x => x.UserId == CurrentUserId);
         });

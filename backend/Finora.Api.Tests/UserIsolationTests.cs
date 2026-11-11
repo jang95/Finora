@@ -226,6 +226,30 @@ public class UserIsolationTests(PostgresApiFactory factory) : IClassFixture<Post
         Assert.Equal(0, dashboardB.GetProperty("recentTransactions").GetArrayLength());
     }
 
+    [Fact]
+    public async Task DashboardLayouts_EachUserHasOwnLayout()
+    {
+        var clientA = await RegisterAndLoginAsync();
+        var clientB = await RegisterAndLoginAsync();
+
+        // A만 배치를 저장한다 (기간 요약을 숨김)
+        await clientA.PutAsJsonAsync("/api/dashboard-layouts/statistics",
+            new { items = new[] { new { id = "summary", size = "full", hidden = true } } });
+
+        var layoutA = await clientA.GetFromJsonAsync<JsonElement>("/api/dashboard-layouts/statistics");
+        var layoutB = await clientB.GetFromJsonAsync<JsonElement>("/api/dashboard-layouts/statistics");
+
+        // A는 저장한 배치, B는 아직 없음(빈 배열). 같은 주소(statistics)라도 사용자마다 다른 행이다
+        Assert.Equal(1, layoutA.GetProperty("items").GetArrayLength());
+        Assert.Equal(0, layoutB.GetProperty("items").GetArrayLength());
+
+        // B가 저장해도 A의 배치는 바뀌지 않는다 (덮어쓰기는 자기 행만)
+        await clientB.PutAsJsonAsync("/api/dashboard-layouts/statistics",
+            new { items = new[] { new { id = "monthlyTotals", size = "half", hidden = false } } });
+        layoutA = await clientA.GetFromJsonAsync<JsonElement>("/api/dashboard-layouts/statistics");
+        Assert.Equal("summary", layoutA.GetProperty("items")[0].GetProperty("id").GetString());
+    }
+
     // ---- 테스트 도우미 ----
 
     private HttpClient CreateClient() => _server.CreateHttpsClient();
