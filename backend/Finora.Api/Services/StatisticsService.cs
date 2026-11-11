@@ -160,6 +160,74 @@ public class StatisticsService(FinoraDbContext db)
         return ServiceResult<List<MonthlyTotalResponse>>.Ok(months);
     }
 
+    // 위젯 ⑥ 도넛: 기간 지출을 대분류 상위 top개 + "기타"로 나눈 비중
+    public async Task<ServiceResult<CategorySharesResponse>> GetCategorySharesAsync(DateOnly from, DateOnly to, int top, CancellationToken cancellationToken)
+    {
+        var error = ValidatePeriod<CategorySharesResponse>(from, to) ?? ValidateTop<CategorySharesResponse>(top);
+        if (error is not null) return error;
+
+        var (rootNames, sums) = await RootMonthlyExpensesAsync(from, to, cancellationToken);
+
+        // 달 구분 없이 대분류별 합계. GroupBy(묶음 키).Sum: C#의 LINQ도 SQL의 GROUP BY처럼 쓸 수 있다 (여기는 메모리 안)
+        var totals = sums
+            .GroupBy(s => s.Key.Root)
+            .Select(g => (Root: g.Key, Amount: g.Sum(s => s.Value)))
+            .OrderByDescending(x => x.Amount)
+            .ThenBy(x => rootNames[x.Root])
+            .ToList();
+        var total = totals.Sum(x => x.Amount);
+
+        var items = totals.Take(top)
+            .Select(x => new CategoryShareResponse(x.Root == 0 ? null : x.Root, rootNames[x.Root], x.Amount, Ratio(x.Amount, total)))
+            .ToList();
+        // 상위에 못 든 나머지는 "기타" 하나로. 0원이면 넣지 않는다 (빈 조각이 생기지 않게)
+        var other = totals.Skip(top).Sum(x => x.Amount);
+        if (other > 0)
+            items.Add(new CategoryShareResponse(null, OtherName, other, Ratio(other, total)));
+
+        return ServiceResult<CategorySharesResponse>.Ok(new CategorySharesResponse(total, items));
+    }
+
+    // 위젯 ⑦ 쌓은 막대: 기간에 걸친 달마다 대분류 상위 top개 + "기타"의 지출
+    public async Task<ServiceResult<CategoryMonthlyResponse>> GetCategoryMonthlyAsync(DateOnly from, DateOnly to, int top, CancellationToken cancellationToken)
+    {
+        var error = ValidatePeriod<CategoryMonthlyResponse>(from, to) ?? ValidateTop<CategoryMonthlyResponse>(top);
+        if (error is not null) return error;
+        var monthCount = (to.Year * 12 + to.Month) - (from.Year * 12 + from.Month) + 1;
+        if (monthCount > MaxMonths)
+            return ServiceResult<CategoryMonthlyResponse>.Invalid("to", $"최대 {MaxMonths}개월까지 조회할 수 있습니다.");
+
+        var (rootNames, sums) = await RootMonthlyExpensesAsync(from, to, cancellationToken);
+
+        // 어느 대분류를 선으로 둘지는 기간 전체 합계로 정한다 (달마다 상위가 바뀌면 색이 왔다 갔다 해서 읽기 어렵다)
+        var ranked = sums
+            .GroupBy(s => s.Key.Root)
+            .Select(g => (Root: g.Key, Amount: g.Sum(s => s.Value)))
+            .OrderByDescending(x => x.Amount)
+            .ThenBy(x => rootNames[x.Root])
+            .ToList();
+        var topRoots = ranked.Take(top).Select(x => x.Root).ToList();
+        var otherRoots = ranked.Skip(top).Select(x => x.Root).ToHashSet();
+        var hasOther = ranked.Skip(top).Any(x => x.Amount > 0);
+
+        var series = topRoots.Select(r => new CategorySeriesResponse(r == 0 ? null : r, rootNames[r])).ToList();
+        if (hasOther) series.Add(new CategorySeriesResponse(null, OtherName));
+
+        var firstMonth = new DateOnly(from.Year, from.Month, 1);
+        var months = Enumerable.Range(0, monthCount)
+            .Select(i =>
+            {
+                var m = firstMonth.AddMonths(i);
+                var amounts = topRoots.Select(r => sums.GetValueOrDefault((r, m.Year, m.Month))).ToList();
+                if (hasOther)
+                    amounts.Add(otherRoots.Sum(r => sums.GetValueOrDefault((r, m.Year, m.Month))));
+                return new CategoryMonthResponse(m.Year, m.Month, amounts);
+            })
+            .ToList();
+
+        return ServiceResult<CategoryMonthlyResponse>.Ok(new CategoryMonthlyResponse(series, months));
+    }
+
     // 기간의 날마다 수입/지출 + 지출 누적 (위젯 ④ 일별 지출 추이, ⑤ 이전 기간 누적 비교)
     public async Task<ServiceResult<List<DailyTotalResponse>>> GetDailyTotalsAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken)
     {
@@ -213,6 +281,59 @@ public class StatisticsService(FinoraDbContext db)
     }
 
     // ---- 내부 도우미 ----
+
+    // 상위 N개에 못 든 대분류를 묶는 이름
+    private const string OtherName = "기타";
+
+    // 상위 몇 개까지 따로 보여줄지 (너무 많으면 색으로 구분할 수 없다. 차트 색 토큰은 5개)
+    private const int MaxTop = 5;
+
+    private static ServiceResult<T>? ValidateTop<T>(int top) =>
+        top < 1 || top > MaxTop ? ServiceResult<T>.Invalid("top", $"top은 1~{MaxTop} 사이여야 합니다.") : null;
+
+    // 비율(%) = 금액 ÷ 전체 × 100, 소수 첫째 자리 반올림 (GetCategoryExpensesAsync와 같은 규칙)
+    private static decimal Ratio(decimal amount, decimal total) =>
+        total == 0 ? 0m : Math.Round(amount / total * 100, 1, MidpointRounding.AwayFromZero);
+
+    // 기간의 지출을 "대분류 × 연월"로 묶은 합계. 하위 분류의 지출은 자기 대분류에 합친다 (결정 D23).
+    // 돌려주는 값: (대분류 Id → 이름, (대분류 Id, 연, 월) → 지출). 미분류(카테고리 없음)는 Id 0.
+    // 튜플 (A, B)를 반환 타입으로 쓰면 값 두 개를 클래스 없이 함께 돌려줄 수 있다. 받는 쪽은 var (a, b) = ... 로 푼다
+    private async Task<(Dictionary<int, string> RootNames, Dictionary<(int Root, int Year, int Month), decimal> Sums)> RootMonthlyExpensesAsync(
+        DateOnly from, DateOnly to, CancellationToken cancellationToken)
+    {
+        var categories = await db.Categories
+            .Select(c => new { c.Id, c.ParentId, c.Name })
+            .ToDictionaryAsync(c => c.Id, cancellationToken);
+
+        var sums = await db.Transactions
+            .Where(t => t.Date >= from && t.Date <= to && t.Type == TransactionType.Expense)
+            .GroupBy(t => new { t.Date.Year, t.Date.Month, t.CategoryId })
+            .Select(g => new { g.Key.Year, g.Key.Month, g.Key.CategoryId, Amount = g.Sum(t => t.Amount) })
+            .ToListAsync(cancellationToken);
+
+        var rootNames = new Dictionary<int, string> { [0] = "미분류" };
+        var result = new Dictionary<(int Root, int Year, int Month), decimal>();
+        foreach (var sum in sums)
+        {
+            var root = RootOf(sum.CategoryId);
+            rootNames.TryAdd(root, categories.TryGetValue(root, out var c) ? c.Name : "미분류");
+            var key = (root, sum.Year, sum.Month);
+            result[key] = result.GetValueOrDefault(key) + sum.Amount;
+        }
+        return (rootNames, result);
+
+        // 부모를 따라 맨 위(대분류)까지 올라간다. 최대 3단계라 세 번이면 닿는다 (FindBucket과 같은 보호 장치)
+        int RootOf(int? categoryId)
+        {
+            var currentId = categoryId;
+            for (var i = 0; i < 3 && currentId is not null && categories.TryGetValue(currentId.Value, out var current); i++)
+            {
+                if (current.ParentId is null) return current.Id;
+                currentId = current.ParentId;
+            }
+            return 0;
+        }
+    }
 
     // 기간 날짜 검사. 문제가 없으면 null.
     // <T>를 메서드에 붙이면 제네릭 메서드: 부르는 쪽이 정한 결과 타입(ServiceResult<T>)으로 오류를 돌려준다.

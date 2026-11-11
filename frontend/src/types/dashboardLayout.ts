@@ -5,7 +5,7 @@
 // TypeScript가 string[]이 아니라 정확히 이 세 글자값의 배열로 본다.
 // 새 위젯을 만들면 여기에 id를 더하고 components/statistics/widgets.tsx에 내용을 등록한다.
 // Backend DashboardLayoutService.WidgetIdsByPage와 같은 목록이어야 한다 (모르는 id는 저장을 거절한다)
-export const WIDGET_IDS = ['summary', 'monthlyTotals', 'categoryExpenses', 'dailyExpense', 'cumulativeCompare'] as const
+export const WIDGET_IDS = ['summary', 'monthlyTotals', 'categoryExpenses', 'dailyExpense', 'cumulativeCompare', 'categoryDonut', 'categoryMonthly'] as const
 
 // (typeof WIDGET_IDS)[number]: 배열의 "원소 타입" = 'summary' | 'monthlyTotals' | 'categoryExpenses'
 // 목록에 id를 더하면 이 타입도 저절로 늘어난다 (두 곳을 따로 고칠 필요가 없다).

@@ -8,6 +8,37 @@ export interface MonthlyTotal {
   expense: number
 }
 
+// 기간 지출의 대분류 상위 N개 + "기타" 비중 (GET /api/statistics/categories/top). categoryId가 null이면 "기타" 묶음
+export interface CategoryShares {
+  total: number
+  items: CategoryShare[]
+}
+
+export interface CategoryShare {
+  categoryId: number | null
+  name: string
+  amount: number
+  ratio: number // %
+}
+
+// 달마다 대분류 상위 N개 + "기타"의 지출 (GET /api/statistics/categories/monthly).
+// months[m].amounts[i]가 series[i]의 그달 지출. 순서가 같아서 i로 맞춘다
+export interface CategoryMonthly {
+  series: CategorySeries[]
+  months: CategoryMonthRow[]
+}
+
+export interface CategorySeries {
+  categoryId: number | null
+  name: string
+}
+
+export interface CategoryMonthRow {
+  year: number
+  month: number
+  amounts: number[]
+}
+
 // 하루의 수입/지출 합계와 기간 첫날부터의 지출 누적 (GET /api/statistics/daily). 누적도 Backend가 계산한다 (결정 D4)
 export interface DailyTotal {
   date: string // 'YYYY-MM-DD'

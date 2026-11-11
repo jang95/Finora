@@ -23,6 +23,22 @@ public record CategoryExpenseResponse(int CategoryId, string CategoryName, decim
 // GET /api/statistics/monthly — 기간에 걸친 달마다의 수입/지출 (오래된 달이 앞). Frontend의 MonthlyTotal과 같은 모양.
 public record MonthlyTotalResponse(int Year, int Month, decimal Income, decimal Expense);
 
+// GET /api/statistics/categories/top — 기간 지출을 대분류 상위 N개 + "기타"(나머지 합계)로 나눈 비중 (위젯 ⑥ 도넛).
+// Total: 기간 지출 전체. Items의 Ratio는 Total 중 비율(%)이고 합이 반올림 때문에 정확히 100이 아닐 수 있다.
+// CategoryId가 null이면 "기타" 묶음 (상위 N개에 못 든 대분류들 + 미분류)
+public record CategorySharesResponse(decimal Total, List<CategoryShareResponse> Items);
+
+public record CategoryShareResponse(int? CategoryId, string Name, decimal Amount, decimal Ratio);
+
+// GET /api/statistics/categories/monthly — 기간에 걸친 달마다 대분류 상위 N개 + "기타"의 지출 (위젯 ⑦ 쌓은 막대).
+// Series: 선(묶음) 목록. 기간 전체 지출이 큰 순. 마지막이 "기타"(CategoryId null)일 수 있다.
+// Months: 달마다 Amounts[i] = Series[i]의 그달 지출 (거래 없는 달은 0). 같은 순서라 화면이 i로 맞춘다
+public record CategoryMonthlyResponse(List<CategorySeriesResponse> Series, List<CategoryMonthResponse> Months);
+
+public record CategorySeriesResponse(int? CategoryId, string Name);
+
+public record CategoryMonthResponse(int Year, int Month, List<decimal> Amounts);
+
 // GET /api/statistics/daily — 기간의 날마다 수입/지출 (거래 없는 날은 0). Frontend의 DailyTotal과 같은 모양.
 // CumulativeExpense: 기간 첫날부터 이날까지 지출 누적. 누적도 금액 계산이라 Backend decimal로 한다 (결정 D4) — 화면은 선만 긋는다
 public record DailyTotalResponse(DateOnly Date, decimal Income, decimal Expense, decimal CumulativeExpense);

@@ -1,5 +1,7 @@
 import type { ComponentType } from 'react'
+import CategoryDonutWidget from '@/components/statistics/CategoryDonutWidget'
 import CategoryExpenseWidget from '@/components/statistics/CategoryExpenseWidget'
+import CategoryMonthlyWidget from '@/components/statistics/CategoryMonthlyWidget'
 import CumulativeCompareWidget from '@/components/statistics/CumulativeCompareWidget'
 import DailyExpenseWidget from '@/components/statistics/DailyExpenseWidget'
 import MonthlyTotalsWidget from '@/components/statistics/MonthlyTotalsWidget'
@@ -32,6 +34,8 @@ export const WIDGETS: Record<WidgetId, WidgetDefinition> = {
   categoryExpenses: { name: '카테고리별 지출', defaultSize: 'half', component: CategoryExpenseWidget },
   dailyExpense: { name: '일별 지출 추이', defaultSize: 'half', component: DailyExpenseWidget },
   cumulativeCompare: { name: '이전 기간 누적 비교', defaultSize: 'half', component: CumulativeCompareWidget },
+  categoryDonut: { name: '카테고리 비중', defaultSize: 'half', component: CategoryDonutWidget },
+  categoryMonthly: { name: '상위 카테고리 월별 추이', defaultSize: 'full', component: CategoryMonthlyWidget },
 }
 
 // 기본 배치: 위젯 목록 순서대로, 기본 크기로, 모두 보임. 저장된 배치가 없을 때 쓴다 (결정 D27).

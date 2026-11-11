@@ -1,6 +1,6 @@
 import { apiRequest } from '@/services/api'
 import { transactionsQueryKey } from '@/services/transactionService'
-import type { CategoryExpense, DailyTotal, MonthlyTotal, PeriodSummary } from '@/types/statistics'
+import type { CategoryExpense, CategoryMonthly, CategoryShares, DailyTotal, MonthlyTotal, PeriodSummary } from '@/types/statistics'
 
 // 통계 API (Phase 6). 합계·비율은 Backend가 decimal로 계산해서 내려준다 (결정 D4). 화면은 그리기만 한다.
 // 기간은 모두 from ~ to ('YYYY-MM-DD', 양 끝 포함)로 보낸다. (utils/period.ts의 Period)
@@ -29,6 +29,23 @@ export async function getCategoryExpenses(from: string, to: string, parentId: nu
 // 기간에 걸친 달마다의 수입/지출 (오래된 달이 앞, 거래 없는 달은 0, 최대 36개월)
 export async function getMonthlyTotals(from: string, to: string): Promise<MonthlyTotal[]> {
   return apiRequest<MonthlyTotal[]>(`/api/statistics/monthly?from=${from}&to=${to}`)
+}
+
+// 도넛·쌓은 막대가 따로 보여주는 대분류 수. 차트 색 토큰이 5개라 5 (index.css chart-1~5 설명 참고)
+export const TOP_CATEGORY_COUNT = 5
+
+export const categorySharesQueryKey = (from: string, to: string) => [...transactionsQueryKey, 'categoryShares', from, to] as const
+
+// 기간 지출의 대분류 상위 5개 + "기타" 비중
+export async function getCategoryShares(from: string, to: string): Promise<CategoryShares> {
+  return apiRequest<CategoryShares>(`/api/statistics/categories/top?from=${from}&to=${to}&top=${TOP_CATEGORY_COUNT}`)
+}
+
+export const categoryMonthlyQueryKey = (from: string, to: string) => [...transactionsQueryKey, 'categoryMonthly', from, to] as const
+
+// 달마다 대분류 상위 5개 + "기타"의 지출 (최대 36개월)
+export async function getCategoryMonthly(from: string, to: string): Promise<CategoryMonthly> {
+  return apiRequest<CategoryMonthly>(`/api/statistics/categories/monthly?from=${from}&to=${to}&top=${TOP_CATEGORY_COUNT}`)
 }
 
 export const dailyTotalsQueryKey = (from: string, to: string) => [...transactionsQueryKey, 'dailyTotals', from, to] as const

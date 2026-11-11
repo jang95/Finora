@@ -37,6 +37,33 @@ public class StatisticsController(StatisticsService statistics) : ControllerBase
         return result.Value!;
     }
 
+    // GET /api/statistics/categories/top?from&to&top=5 — 기간 지출의 대분류 상위 N개 + "기타" 비중 (위젯 ⑥)
+    // int top = 5: 주소에 top이 없으면 5. "categories"와 "categories/top"은 다른 주소라 서로 섞이지 않는다
+    [HttpGet("categories/top")]
+    public async Task<ActionResult<CategorySharesResponse>> GetCategoryShares(
+        [FromQuery, BindRequired] DateOnly from,
+        [FromQuery, BindRequired] DateOnly to,
+        [FromQuery] int top = 5,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await statistics.GetCategorySharesAsync(from, to, top, cancellationToken);
+        if (result.Errors is not null) return this.ValidationErrors(result.Errors);
+        return result.Value!;
+    }
+
+    // GET /api/statistics/categories/monthly?from&to&top=5 — 달마다 대분류 상위 N개 + "기타"의 지출 (위젯 ⑦, 최대 36개월)
+    [HttpGet("categories/monthly")]
+    public async Task<ActionResult<CategoryMonthlyResponse>> GetCategoryMonthly(
+        [FromQuery, BindRequired] DateOnly from,
+        [FromQuery, BindRequired] DateOnly to,
+        [FromQuery] int top = 5,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await statistics.GetCategoryMonthlyAsync(from, to, top, cancellationToken);
+        if (result.Errors is not null) return this.ValidationErrors(result.Errors);
+        return result.Value!;
+    }
+
     // GET /api/statistics/monthly?from=2026-05-01&to=2026-10-31 — 기간에 걸친 달마다의 수입/지출 (최대 36개월)
     [HttpGet("monthly")]
     public async Task<ActionResult<List<MonthlyTotalResponse>>> GetMonthlyTotals(

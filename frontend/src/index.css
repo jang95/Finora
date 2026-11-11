@@ -82,11 +82,15 @@
     --border: oklch(0.922 0 0);
     --input: oklch(0.922 0 0);
     --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    /* chart-1~5: 카테고리처럼 "서로 다른 것"을 구분하는 차트 색 (파랑·주황·청록·노랑·분홍).
+       순서가 중요하다: 이웃한 색끼리 색각 이상(적록·청황)에서도 구분되도록 검사 스크립트로 확인한 순서라 바꾸지 않는다.
+       위젯은 1번부터 차례로 쓰고 6번째부터는 "기타"로 묶는다 (dataviz 규칙: 색을 돌려쓰지 않는다).
+       청록·노랑·분홍은 흰 배경 대비가 3:1보다 낮아서, 이 색을 쓰는 차트는 범례 글자와 표를 꼭 같이 둔다 */
+    --chart-1: #2a78d6;
+    --chart-2: #eb6834;
+    --chart-3: #1baf7a;
+    --chart-4: #eda100;
+    --chart-5: #e87ba4;
     --radius: 0.625rem;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
@@ -129,11 +133,12 @@
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    /* 다크 모드용 같은 다섯 색. 어두운 카드 배경에 맞춰 밝기만 다시 잡은 값 (라이트 값을 그대로 쓰면 대비가 깨진다) */
+    --chart-1: #3987e5;
+    --chart-2: #d95926;
+    --chart-3: #199e70;
+    --chart-4: #c98500;
+    --chart-5: #d55181;
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: oklch(0.488 0.243 264.376);

@@ -234,6 +234,80 @@ public class StatisticsApiTests(PostgresApiFactory factory) : IClassFixture<Post
         return (await response.Content.ReadFromJsonAsync<CategoryDto>())!.Id;
     }
 
+    private record ShareDto(int? CategoryId, string Name, decimal Amount, decimal Ratio);
+
+    private record SharesDto(decimal Total, List<ShareDto> Items);
+
+    private record SeriesDto(int? CategoryId, string Name);
+
+    private record MonthRowDto(int Year, int Month, List<decimal> Amounts);
+
+    private record CategoryMonthlyDto(List<SeriesDto> Series, List<MonthRowDto> Months);
+
+    [Fact]
+    public async Task CategoryShares_TakesTopAndFoldsRestIntoOther()
+    {
+        var (client, food, _) = await NewUserAsync();
+        var transport = await CategoryIdAsync(client, "교통");
+        var shopping = await CategoryIdAsync(client, "쇼핑");
+        var bus = await CreateCategoryAsync(client, "버스", transport); // 교통의 하위 분류 → 교통에 합산
+        await CreateAsync(client, "2026-10-01", "Expense", food, 6000);
+        await CreateAsync(client, "2026-10-02", "Expense", transport, 1000);
+        await CreateAsync(client, "2026-10-03", "Expense", bus, 2000);
+        await CreateAsync(client, "2026-10-04", "Expense", shopping, 1000);
+
+        var shares = (await client.GetFromJsonAsync<SharesDto>("/api/statistics/categories/top?from=2026-10-01&to=2026-10-31&top=2"))!;
+
+        Assert.Equal(10000m, shares.Total);
+        Assert.Equal(["식비", "교통", "기타"], shares.Items.Select(i => i.Name));
+        Assert.Equal(3000m, shares.Items[1].Amount); // 교통 1,000 + 버스 2,000
+        Assert.Equal(30m, shares.Items[1].Ratio);
+        Assert.Null(shares.Items[2].CategoryId); // "기타"는 카테고리가 아니다
+        Assert.Equal(1000m, shares.Items[2].Amount);
+    }
+
+    [Fact]
+    public async Task CategoryMonthly_RanksByWholeRangeAndFillsEmptyMonths()
+    {
+        var (client, food, _) = await NewUserAsync();
+        var transport = await CategoryIdAsync(client, "교통");
+        var shopping = await CategoryIdAsync(client, "쇼핑");
+        await CreateAsync(client, "2026-09-10", "Expense", food, 1000);
+        await CreateAsync(client, "2026-09-11", "Expense", transport, 5000);
+        await CreateAsync(client, "2026-11-10", "Expense", food, 9000); // 10월은 비어 있다
+        await CreateAsync(client, "2026-11-11", "Expense", shopping, 100);
+
+        var monthly = (await client.GetFromJsonAsync<CategoryMonthlyDto>("/api/statistics/categories/monthly?from=2026-09-01&to=2026-11-30&top=2"))!;
+
+        // 기간 전체: 식비 10,000 > 교통 5,000 > 쇼핑 100(기타). 달마다 1등이 달라도 순서는 전체 기준
+        Assert.Equal(["식비", "교통", "기타"], monthly.Series.Select(s => s.Name));
+        Assert.Equal(3, monthly.Months.Count);
+        Assert.Equal([1000m, 5000m, 0m], monthly.Months[0].Amounts);
+        Assert.Equal([0m, 0m, 0m], monthly.Months[1].Amounts); // 거래 없는 달도 0으로
+        Assert.Equal([9000m, 0m, 100m], monthly.Months[2].Amounts);
+    }
+
+    [Fact]
+    public async Task CategoryMonthly_WithoutRemainder_HasNoOtherSeries()
+    {
+        var (client, food, _) = await NewUserAsync();
+        await CreateAsync(client, "2026-10-01", "Expense", food, 1000);
+
+        var monthly = (await client.GetFromJsonAsync<CategoryMonthlyDto>("/api/statistics/categories/monthly?from=2026-10-01&to=2026-10-31"))!;
+
+        Assert.Equal(["식비"], monthly.Series.Select(s => s.Name));
+    }
+
+    [Fact]
+    public async Task CategoryShares_RejectsTopOutOfRange()
+    {
+        var (client, _, _) = await NewUserAsync();
+
+        var response = await client.GetAsync("/api/statistics/categories/top?from=2026-10-01&to=2026-10-31&top=6");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     private record DailyTotalDto(string Date, decimal Income, decimal Expense, decimal CumulativeExpense);
 
     [Fact]
