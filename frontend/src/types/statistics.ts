@@ -6,6 +6,10 @@ export interface MonthlyTotal {
   month: number // 1~12
   income: number
   expense: number
+  // 저축률(%) = (수입 − 지출) ÷ 수입. 수입이 0인 달은 null (Backend가 계산, 결정 D4)
+  savingRate: number | null
+  // 그달 말 기준 누적 총자산 (가계부 기준, 결정 D17)
+  totalAssets: number
 }
 
 // 기간 지출의 대분류 상위 N개 + "기타" 비중 (GET /api/statistics/categories/top). categoryId가 null이면 "기타" 묶음

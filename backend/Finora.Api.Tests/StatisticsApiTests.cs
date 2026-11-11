@@ -308,6 +308,25 @@ public class StatisticsApiTests(PostgresApiFactory factory) : IClassFixture<Post
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    private record MonthlyFullDto(int Year, int Month, decimal Income, decimal Expense, decimal? SavingRate, decimal TotalAssets);
+
+    [Fact]
+    public async Task Monthly_IncludesSavingRateAndCumulativeTotalAssets()
+    {
+        var (client, food, salary) = await NewUserAsync();
+        await CreateAsync(client, "2026-08-20", "Income", salary, 1000); // 범위 전: 누적 출발점에만 들어간다
+        await CreateAsync(client, "2026-09-05", "Income", salary, 3000);
+        await CreateAsync(client, "2026-09-10", "Expense", food, 1000.50m); // 9월 저축률 (3000 − 1000.5) ÷ 3000 = 66.65 → 66.7
+        await CreateAsync(client, "2026-10-10", "Expense", food, 500); // 10월은 수입 0 → 저축률 null
+
+        var months = (await client.GetFromJsonAsync<List<MonthlyFullDto>>("/api/statistics/monthly?from=2026-09-01&to=2026-10-31"))!;
+
+        Assert.Equal(66.7m, months[0].SavingRate);
+        Assert.Equal(2999.50m, months[0].TotalAssets); // 1000 + 3000 − 1000.5
+        Assert.Null(months[1].SavingRate);
+        Assert.Equal(2499.50m, months[1].TotalAssets);
+    }
+
     private record WeekdayDto(string Weekday, int DayCount, decimal Total, decimal Average);
 
     private record TransactionDto(int Id, string Date, string Type, decimal Amount, string? Memo);

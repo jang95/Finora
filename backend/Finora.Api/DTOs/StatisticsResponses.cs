@@ -21,7 +21,9 @@ public record DashboardResponse(List<TransactionResponse> RecentTransactions);
 public record CategoryExpenseResponse(int CategoryId, string CategoryName, decimal Amount, decimal Ratio, bool HasChildren, bool IsDirect);
 
 // GET /api/statistics/monthly — 기간에 걸친 달마다의 수입/지출 (오래된 달이 앞). Frontend의 MonthlyTotal과 같은 모양.
-public record MonthlyTotalResponse(int Year, int Month, decimal Income, decimal Expense);
+// SavingRate: 저축률(%) = (수입 − 지출) ÷ 수입 × 100, 소수 첫째 자리. 수입이 0이면 null (나눌 수 없음 → 화면은 그달을 비운다). 위젯 ⑩
+// TotalAssets: 그달 말 기준 누적 총자산 (가계부 기준 = 처음부터 그달 말까지 수입 − 지출, 결정 D17). 위젯 ⑪
+public record MonthlyTotalResponse(int Year, int Month, decimal Income, decimal Expense, decimal? SavingRate, decimal TotalAssets);
 
 // GET /api/statistics/categories/top — 기간 지출을 대분류 상위 N개 + "기타"(나머지 합계)로 나눈 비중 (위젯 ⑥ 도넛).
 // Total: 기간 지출 전체. Items의 Ratio는 Total 중 비율(%)이고 합이 반올림 때문에 정확히 100이 아닐 수 있다.

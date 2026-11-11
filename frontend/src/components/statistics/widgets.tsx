@@ -6,7 +6,9 @@ import CumulativeCompareWidget from '@/components/statistics/CumulativeCompareWi
 import DailyExpenseWidget from '@/components/statistics/DailyExpenseWidget'
 import MonthlyTotalsWidget from '@/components/statistics/MonthlyTotalsWidget'
 import PeriodSummaryWidget from '@/components/statistics/PeriodSummaryWidget'
+import SavingRateWidget from '@/components/statistics/SavingRateWidget'
 import TopExpensesWidget from '@/components/statistics/TopExpensesWidget'
+import TotalAssetsWidget from '@/components/statistics/TotalAssetsWidget'
 import WeekdayAverageWidget from '@/components/statistics/WeekdayAverageWidget'
 import { WIDGET_IDS, type WidgetId, type WidgetLayoutItem, type WidgetSize } from '@/types/dashboardLayout'
 import type { Period } from '@/utils/period'
@@ -40,6 +42,8 @@ export const WIDGETS: Record<WidgetId, WidgetDefinition> = {
   categoryMonthly: { name: '상위 카테고리 월별 추이', defaultSize: 'full', component: CategoryMonthlyWidget },
   weekdayAverage: { name: '요일별 평균 지출', defaultSize: 'half', component: WeekdayAverageWidget },
   topExpenses: { name: '큰 지출 TOP 5', defaultSize: 'half', component: TopExpensesWidget },
+  savingRate: { name: '저축률 추이', defaultSize: 'half', component: SavingRateWidget },
+  totalAssets: { name: '총자산 추이', defaultSize: 'half', component: TotalAssetsWidget },
 }
 
 // 기본 배치: 위젯 목록 순서대로, 기본 크기로, 모두 보임. 저장된 배치가 없을 때 쓴다 (결정 D27).

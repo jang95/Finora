@@ -148,14 +148,20 @@ public class StatisticsService(FinoraDbContext db)
 
         // 거래가 없는 달도 0으로 채워서, from이 있는 달부터 to가 있는 달까지 빠짐없이 돌려준다.
         var firstMonth = new DateOnly(from.Year, from.Month, 1);
-        var months = Enumerable.Range(0, monthCount)
-            .Select(i =>
-            {
-                var m = firstMonth.AddMonths(i);
-                totals.TryGetValue((m.Year, m.Month), out var total);
-                return new MonthlyTotalResponse(m.Year, m.Month, total?.Income ?? 0m, total?.Expense ?? 0m);
-            })
-            .ToList();
+        // 누적 총자산의 출발점: 첫 달 전까지의 누적 (그 뒤는 달마다 수입 − 지출을 더해 간다 → 쿼리 한 번으로 끝)
+        var totalAssets = await SumTotalAssetsAsync(db.Transactions.Where(t => t.Date < firstMonth), cancellationToken);
+        var months = new List<MonthlyTotalResponse>(monthCount);
+        for (var i = 0; i < monthCount; i++)
+        {
+            var m = firstMonth.AddMonths(i);
+            totals.TryGetValue((m.Year, m.Month), out var total);
+            var income = total?.Income ?? 0m;
+            var expense = total?.Expense ?? 0m;
+            totalAssets += income - expense;
+            // 저축률: 수입이 0이면 나눌 수 없으므로 null. decimal? 는 "값이 없을 수도 있는 decimal"
+            decimal? savingRate = income == 0 ? null : Math.Round((income - expense) / income * 100, 1, MidpointRounding.AwayFromZero);
+            months.Add(new MonthlyTotalResponse(m.Year, m.Month, income, expense, savingRate, totalAssets));
+        }
 
         return ServiceResult<List<MonthlyTotalResponse>>.Ok(months);
     }
