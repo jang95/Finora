@@ -68,6 +68,38 @@ namespace Finora.Api.Data.Migrations
                     b.ToTable("Categories");
                 });
 
+            modelBuilder.Entity("Finora.Api.Data.Entities.DashboardLayout", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("LayoutJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Page")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Page")
+                        .IsUnique();
+
+                    b.ToTable("DashboardLayouts");
+                });
+
             modelBuilder.Entity("Finora.Api.Data.Entities.FinoraUser", b =>
                 {
                     b.Property<string>("Id")
@@ -493,6 +525,15 @@ namespace Finora.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Parent");
+                });
+
+            modelBuilder.Entity("Finora.Api.Data.Entities.DashboardLayout", b =>
+                {
+                    b.HasOne("Finora.Api.Data.Entities.FinoraUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Finora.Api.Data.Entities.InviteCode", b =>

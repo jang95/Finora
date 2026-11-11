@@ -39,3 +39,22 @@ GET {{Finora.Api_HostAddress}}/api/me
 POST {{Finora.Api_HostAddress}}/api/auth/logout
 
 ###
+
+# 통계 위젯 배치 조회 (결정 D27). 저장한 적이 없으면 items가 []
+GET {{Finora.Api_HostAddress}}/api/dashboard-layouts/statistics
+
+###
+
+# 통계 위젯 배치 저장 (전체 덮어쓰기). id는 summary / monthlyTotals / categoryExpenses, size는 half / full
+PUT {{Finora.Api_HostAddress}}/api/dashboard-layouts/statistics
+Content-Type: application/json
+
+{
+  "items": [
+    { "id": "categoryExpenses", "size": "full", "hidden": false },
+    { "id": "monthlyTotals", "size": "half", "hidden": false },
+    { "id": "summary", "size": "full", "hidden": true }
+  ]
+}
+
+###
