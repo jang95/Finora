@@ -1,6 +1,7 @@
 import { apiRequest } from '@/services/api'
 import { transactionsQueryKey } from '@/services/transactionService'
-import type { CategoryExpense, CategoryMonthly, CategoryShares, DailyTotal, MonthlyTotal, PeriodSummary } from '@/types/statistics'
+import type { CategoryExpense, CategoryMonthly, CategoryShares, DailyTotal, MonthlyTotal, PeriodSummary, WeekdayAverage } from '@/types/statistics'
+import type { Transaction } from '@/types/transaction'
 
 // 통계 API (Phase 6). 합계·비율은 Backend가 decimal로 계산해서 내려준다 (결정 D4). 화면은 그리기만 한다.
 // 기간은 모두 from ~ to ('YYYY-MM-DD', 양 끝 포함)로 보낸다. (utils/period.ts의 Period)
@@ -46,6 +47,23 @@ export const categoryMonthlyQueryKey = (from: string, to: string) => [...transac
 // 달마다 대분류 상위 5개 + "기타"의 지출 (최대 36개월)
 export async function getCategoryMonthly(from: string, to: string): Promise<CategoryMonthly> {
   return apiRequest<CategoryMonthly>(`/api/statistics/categories/monthly?from=${from}&to=${to}&top=${TOP_CATEGORY_COUNT}`)
+}
+
+export const weekdayAveragesQueryKey = (from: string, to: string) => [...transactionsQueryKey, 'weekdayAverages', from, to] as const
+
+// 기간 지출의 요일별 평균 (월~일 7개)
+export async function getWeekdayAverages(from: string, to: string): Promise<WeekdayAverage[]> {
+  return apiRequest<WeekdayAverage[]>(`/api/statistics/weekdays?from=${from}&to=${to}`)
+}
+
+// 큰 지출 목록 건수
+export const TOP_EXPENSE_COUNT = 5
+
+export const topExpensesQueryKey = (from: string, to: string) => [...transactionsQueryKey, 'topExpenses', from, to] as const
+
+// 기간 안 금액 큰 지출 거래 (큰 순, 같은 금액이면 최근 것이 위)
+export async function getTopExpenses(from: string, to: string): Promise<Transaction[]> {
+  return apiRequest<Transaction[]>(`/api/statistics/top-expenses?from=${from}&to=${to}&count=${TOP_EXPENSE_COUNT}`)
 }
 
 export const dailyTotalsQueryKey = (from: string, to: string) => [...transactionsQueryKey, 'dailyTotals', from, to] as const

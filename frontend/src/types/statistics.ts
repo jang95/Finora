@@ -39,6 +39,16 @@ export interface CategoryMonthRow {
   amounts: number[]
 }
 
+// 요일별 평균 지출 (GET /api/statistics/weekdays). 월~일 7개. 평균은 Backend가 "합계 ÷ 기간 안 그 요일 날 수"로 계산 (결정 D4)
+export type Weekday = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday'
+
+export interface WeekdayAverage {
+  weekday: Weekday
+  dayCount: number
+  total: number
+  average: number
+}
+
 // 하루의 수입/지출 합계와 기간 첫날부터의 지출 누적 (GET /api/statistics/daily). 누적도 Backend가 계산한다 (결정 D4)
 export interface DailyTotal {
   date: string // 'YYYY-MM-DD'

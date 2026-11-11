@@ -39,6 +39,11 @@ public record CategorySeriesResponse(int? CategoryId, string Name);
 
 public record CategoryMonthResponse(int Year, int Month, List<decimal> Amounts);
 
+// GET /api/statistics/weekdays — 기간 지출의 요일별 평균 (위젯 ⑧). 월~일 순서, 항상 7개.
+// Weekday: JSON에는 "Monday"처럼 문자열. DayCount: 기간 안에 그 요일이 몇 번 있는지 (거래 없는 날 포함).
+// Average = Total ÷ DayCount, 원 미만 반올림 (DayCount가 0이면 0). 평균도 Backend decimal (결정 D4)
+public record WeekdayAverageResponse(DayOfWeek Weekday, int DayCount, decimal Total, decimal Average);
+
 // GET /api/statistics/daily — 기간의 날마다 수입/지출 (거래 없는 날은 0). Frontend의 DailyTotal과 같은 모양.
 // CumulativeExpense: 기간 첫날부터 이날까지 지출 누적. 누적도 금액 계산이라 Backend decimal로 한다 (결정 D4) — 화면은 선만 긋는다
 public record DailyTotalResponse(DateOnly Date, decimal Income, decimal Expense, decimal CumulativeExpense);

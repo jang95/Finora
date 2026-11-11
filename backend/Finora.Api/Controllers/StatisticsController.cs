@@ -64,6 +64,31 @@ public class StatisticsController(StatisticsService statistics) : ControllerBase
         return result.Value!;
     }
 
+    // GET /api/statistics/weekdays?from&to — 기간 지출의 요일별 평균 (월~일 7개, 위젯 ⑧)
+    [HttpGet("weekdays")]
+    public async Task<ActionResult<List<WeekdayAverageResponse>>> GetWeekdayAverages(
+        [FromQuery, BindRequired] DateOnly from,
+        [FromQuery, BindRequired] DateOnly to,
+        CancellationToken cancellationToken)
+    {
+        var result = await statistics.GetWeekdayAveragesAsync(from, to, cancellationToken);
+        if (result.Errors is not null) return this.ValidationErrors(result.Errors);
+        return result.Value!;
+    }
+
+    // GET /api/statistics/top-expenses?from&to&count=5 — 기간 안 금액 큰 지출 거래 (위젯 ⑨, 최대 20건)
+    [HttpGet("top-expenses")]
+    public async Task<ActionResult<List<TransactionResponse>>> GetTopExpenses(
+        [FromQuery, BindRequired] DateOnly from,
+        [FromQuery, BindRequired] DateOnly to,
+        [FromQuery] int count = 5,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await statistics.GetTopExpensesAsync(from, to, count, cancellationToken);
+        if (result.Errors is not null) return this.ValidationErrors(result.Errors);
+        return result.Value!;
+    }
+
     // GET /api/statistics/monthly?from=2026-05-01&to=2026-10-31 — 기간에 걸친 달마다의 수입/지출 (최대 36개월)
     [HttpGet("monthly")]
     public async Task<ActionResult<List<MonthlyTotalResponse>>> GetMonthlyTotals(

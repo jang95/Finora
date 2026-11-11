@@ -18,7 +18,7 @@ public class DashboardLayoutService(FinoraDbContext db, CurrentUser currentUser,
     // Frontend에서 새 위젯을 만들면 여기에도 추가한다. 모르는 id를 막아서 이상한 값이 DB에 쌓이지 않게 한다
     public static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> WidgetIdsByPage = new Dictionary<string, IReadOnlySet<string>>
     {
-        ["statistics"] = new HashSet<string> { "summary", "monthlyTotals", "categoryExpenses", "dailyExpense", "cumulativeCompare", "categoryDonut", "categoryMonthly" },
+        ["statistics"] = new HashSet<string> { "summary", "monthlyTotals", "categoryExpenses", "dailyExpense", "cumulativeCompare", "categoryDonut", "categoryMonthly", "weekdayAverage", "topExpenses" },
     };
 
     private static readonly HashSet<string> Sizes = ["half", "full"];

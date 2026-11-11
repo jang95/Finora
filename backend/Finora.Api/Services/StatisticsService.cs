@@ -228,6 +228,59 @@ public class StatisticsService(FinoraDbContext db)
         return ServiceResult<CategoryMonthlyResponse>.Ok(new CategoryMonthlyResponse(series, months));
     }
 
+    // 위젯 ⑧ 요일별 평균 지출. 월~일 순서로 7개
+    public async Task<ServiceResult<List<WeekdayAverageResponse>>> GetWeekdayAveragesAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken)
+    {
+        var error = ValidatePeriod<List<WeekdayAverageResponse>>(from, to);
+        if (error is not null) return error;
+
+        // 요일별 지출 합계. t.Date.DayOfWeek는 EF Core가 SQL(EXTRACT(DOW ...))로 바꿔 준다
+        var totals = await db.Transactions
+            .Where(t => t.Date >= from && t.Date <= to && t.Type == TransactionType.Expense)
+            .GroupBy(t => t.Date.DayOfWeek)
+            .Select(g => new { Weekday = g.Key, Total = g.Sum(t => t.Amount) })
+            .ToDictionaryAsync(x => x.Weekday, x => x.Total, cancellationToken);
+
+        // 기간 안에 각 요일이 몇 번 있는지. 거래가 없는 날도 평균의 분모에 들어간다 (안 쓴 날도 "그 요일의 하루")
+        var dayCounts = new int[7];
+        for (var date = from; date <= to; date = date.AddDays(1))
+            dayCounts[(int)date.DayOfWeek]++;
+
+        // DayOfWeek는 Sunday = 0 … Saturday = 6. 한국식으로 월요일부터 보여주려고 순서를 직접 정한다
+        DayOfWeek[] order = [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday];
+        var result = order
+            .Select(weekday =>
+            {
+                var total = totals.GetValueOrDefault(weekday);
+                var count = dayCounts[(int)weekday];
+                var average = count == 0 ? 0m : Math.Round(total / count, 0, MidpointRounding.AwayFromZero);
+                return new WeekdayAverageResponse(weekday, count, total, average);
+            })
+            .ToList();
+
+        return ServiceResult<List<WeekdayAverageResponse>>.Ok(result);
+    }
+
+    // 위젯 ⑨ 큰 지출 TOP N: 기간 안 금액 큰 순. 같은 금액이면 최근 것이 위
+    public async Task<ServiceResult<List<TransactionResponse>>> GetTopExpensesAsync(DateOnly from, DateOnly to, int count, CancellationToken cancellationToken)
+    {
+        var error = ValidatePeriod<List<TransactionResponse>>(from, to);
+        if (error is not null) return error;
+        if (count < 1 || count > MaxTopExpenses)
+            return ServiceResult<List<TransactionResponse>>.Invalid("count", $"count는 1~{MaxTopExpenses} 사이여야 합니다.");
+
+        var items = await db.Transactions
+            .Where(t => t.Date >= from && t.Date <= to && t.Type == TransactionType.Expense)
+            .OrderByDescending(t => t.Amount)
+            .ThenByDescending(t => t.Date)
+            .ThenByDescending(t => t.Id)
+            .Take(count)
+            .Select(TransactionService.ToResponse)
+            .ToListAsync(cancellationToken);
+
+        return ServiceResult<List<TransactionResponse>>.Ok(items);
+    }
+
     // 기간의 날마다 수입/지출 + 지출 누적 (위젯 ④ 일별 지출 추이, ⑤ 이전 기간 누적 비교)
     public async Task<ServiceResult<List<DailyTotalResponse>>> GetDailyTotalsAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken)
     {
@@ -287,6 +340,9 @@ public class StatisticsService(FinoraDbContext db)
 
     // 상위 몇 개까지 따로 보여줄지 (너무 많으면 색으로 구분할 수 없다. 차트 색 토큰은 5개)
     private const int MaxTop = 5;
+
+    // 큰 지출 목록의 최대 건수
+    private const int MaxTopExpenses = 20;
 
     private static ServiceResult<T>? ValidateTop<T>(int top) =>
         top < 1 || top > MaxTop ? ServiceResult<T>.Invalid("top", $"top은 1~{MaxTop} 사이여야 합니다.") : null;

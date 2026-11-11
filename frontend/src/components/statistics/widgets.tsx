@@ -6,6 +6,8 @@ import CumulativeCompareWidget from '@/components/statistics/CumulativeCompareWi
 import DailyExpenseWidget from '@/components/statistics/DailyExpenseWidget'
 import MonthlyTotalsWidget from '@/components/statistics/MonthlyTotalsWidget'
 import PeriodSummaryWidget from '@/components/statistics/PeriodSummaryWidget'
+import TopExpensesWidget from '@/components/statistics/TopExpensesWidget'
+import WeekdayAverageWidget from '@/components/statistics/WeekdayAverageWidget'
 import { WIDGET_IDS, type WidgetId, type WidgetLayoutItem, type WidgetSize } from '@/types/dashboardLayout'
 import type { Period } from '@/utils/period'
 
@@ -36,6 +38,8 @@ export const WIDGETS: Record<WidgetId, WidgetDefinition> = {
   cumulativeCompare: { name: '이전 기간 누적 비교', defaultSize: 'half', component: CumulativeCompareWidget },
   categoryDonut: { name: '카테고리 비중', defaultSize: 'half', component: CategoryDonutWidget },
   categoryMonthly: { name: '상위 카테고리 월별 추이', defaultSize: 'full', component: CategoryMonthlyWidget },
+  weekdayAverage: { name: '요일별 평균 지출', defaultSize: 'half', component: WeekdayAverageWidget },
+  topExpenses: { name: '큰 지출 TOP 5', defaultSize: 'half', component: TopExpensesWidget },
 }
 
 // 기본 배치: 위젯 목록 순서대로, 기본 크기로, 모두 보임. 저장된 배치가 없을 때 쓴다 (결정 D27).

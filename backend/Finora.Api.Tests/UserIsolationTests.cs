@@ -227,6 +227,20 @@ public class UserIsolationTests(PostgresApiFactory factory) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task Statistics_TopExpensesShowsOnlyOwnTransactions()
+    {
+        var clientA = await RegisterAndLoginAsync();
+        var clientB = await RegisterAndLoginAsync();
+        var foodA = (await clientA.GetFromJsonAsync<List<CategoryDto>>("/api/categories"))!.Single(c => c.Name == "식비").Id;
+        await clientA.PostAsJsonAsync("/api/transactions", new { date = "2026-10-14", type = "Expense", categoryId = foodA, amount = 10000, memo = "A의 큰 지출" });
+
+        var topB = await clientB.GetFromJsonAsync<JsonElement>("/api/statistics/top-expenses?from=2026-10-01&to=2026-10-31");
+
+        // 거래 목록이 그대로 나가는 API라 특히 남의 것이 섞이면 안 된다
+        Assert.Equal(0, topB.GetArrayLength());
+    }
+
+    [Fact]
     public async Task Statistics_DailyIncludesOnlyOwnTransactions()
     {
         var clientA = await RegisterAndLoginAsync();

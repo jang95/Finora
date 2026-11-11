@@ -308,6 +308,55 @@ public class StatisticsApiTests(PostgresApiFactory factory) : IClassFixture<Post
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    private record WeekdayDto(string Weekday, int DayCount, decimal Total, decimal Average);
+
+    private record TransactionDto(int Id, string Date, string Type, decimal Amount, string? Memo);
+
+    [Fact]
+    public async Task Weekdays_AveragesOverEveryOccurrenceOfTheWeekday()
+    {
+        var (client, food, salary) = await NewUserAsync();
+        // 2026-10-05(월) ~ 2026-10-18(일): 2주 → 요일마다 2번씩
+        await CreateAsync(client, "2026-10-05", "Expense", food, 1000); // 월
+        await CreateAsync(client, "2026-10-12", "Expense", food, 2001); // 월 → 합계 3001, 평균 1500.5 → 1501 (반올림)
+        await CreateAsync(client, "2026-10-07", "Expense", food, 500); // 수 (다른 수요일은 0원이라 평균 250)
+        await CreateAsync(client, "2026-10-06", "Income", salary, 99999); // 수입은 제외
+
+        var weekdays = await client.GetFromJsonAsync<List<WeekdayDto>>("/api/statistics/weekdays?from=2026-10-05&to=2026-10-18");
+
+        Assert.Equal(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], weekdays!.Select(w => w.Weekday));
+        Assert.All(weekdays!, w => Assert.Equal(2, w.DayCount));
+        Assert.Equal(3001m, weekdays[0].Total);
+        Assert.Equal(1501m, weekdays[0].Average);
+        Assert.Equal(250m, weekdays[2].Average);
+        Assert.Equal(0m, weekdays[1].Average);
+    }
+
+    [Fact]
+    public async Task TopExpenses_ReturnsLargestFirstLimitedToCount()
+    {
+        var (client, food, salary) = await NewUserAsync();
+        await CreateAsync(client, "2026-10-01", "Expense", food, 3000);
+        await CreateAsync(client, "2026-10-02", "Expense", food, 9000);
+        await CreateAsync(client, "2026-10-03", "Expense", food, 5000);
+        await CreateAsync(client, "2026-10-04", "Income", salary, 99999); // 수입은 제외
+        await CreateAsync(client, "2026-11-01", "Expense", food, 99999); // 기간 밖
+
+        var top = await client.GetFromJsonAsync<List<TransactionDto>>("/api/statistics/top-expenses?from=2026-10-01&to=2026-10-31&count=2");
+
+        Assert.Equal([9000m, 5000m], top!.Select(t => t.Amount));
+    }
+
+    [Fact]
+    public async Task TopExpenses_RejectsCountOutOfRange()
+    {
+        var (client, _, _) = await NewUserAsync();
+
+        var response = await client.GetAsync("/api/statistics/top-expenses?from=2026-10-01&to=2026-10-31&count=21");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     private record DailyTotalDto(string Date, decimal Income, decimal Expense, decimal CumulativeExpense);
 
     [Fact]
