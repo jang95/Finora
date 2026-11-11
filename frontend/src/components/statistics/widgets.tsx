@@ -1,0 +1,38 @@
+import type { ComponentType } from 'react'
+import CategoryExpenseWidget from '@/components/statistics/CategoryExpenseWidget'
+import MonthlyTotalsWidget from '@/components/statistics/MonthlyTotalsWidget'
+import PeriodSummaryWidget from '@/components/statistics/PeriodSummaryWidget'
+import { WIDGET_IDS, type WidgetId, type WidgetLayoutItem, type WidgetSize } from '@/types/dashboardLayout'
+import type { Period } from '@/utils/period'
+
+// 위젯 목록(registry). 통계 대시보드가 "어떤 위젯이 있고, 무엇을 그리는지"를 여기서 찾는다. (결정 D26)
+// 새 위젯 추가 = types/dashboardLayout.ts의 WIDGET_IDS에 id 추가 + 여기 한 줄 등록.
+
+// 모든 위젯이 받는 props. 기간은 화면 위의 PeriodPicker 하나를 모두가 같이 쓴다.
+export interface WidgetProps {
+  period: Period
+}
+
+interface WidgetDefinition {
+  name: string
+  defaultSize: WidgetSize
+  // [ComponentType] "props가 WidgetProps인 컴포넌트"라는 타입. 함수 컴포넌트를 값처럼 변수에 담아 두고
+  //   나중에 <Component period={...} />로 그릴 수 있다 (StatisticsDashboard 참고).
+  //   C#으로 치면 "이 시그니처를 가진 메서드"를 delegate 변수에 담아 두는 것과 비슷하다.
+  component: ComponentType<WidgetProps>
+}
+
+// [Record<K, V>] "K의 모든 값을 키로 가지는 객체" 타입. WidgetId 셋 중 하나라도 빠지면 TypeScript가 에러를 낸다.
+//   그래서 WIDGET_IDS에 id를 더하고 여기 등록을 잊으면 바로 알 수 있다.
+export const WIDGETS: Record<WidgetId, WidgetDefinition> = {
+  summary: { name: '기간 요약', defaultSize: 'full', component: PeriodSummaryWidget },
+  monthlyTotals: { name: '월별 수입·지출', defaultSize: 'half', component: MonthlyTotalsWidget },
+  categoryExpenses: { name: '카테고리별 지출', defaultSize: 'half', component: CategoryExpenseWidget },
+}
+
+// 기본 배치: 위젯 목록 순서대로, 기본 크기로, 모두 보임. 저장된 배치가 없을 때 쓴다 (결정 D27).
+export const DEFAULT_LAYOUT: WidgetLayoutItem[] = WIDGET_IDS.map((id) => ({
+  id,
+  size: WIDGETS[id].defaultSize,
+  hidden: false,
+}))
