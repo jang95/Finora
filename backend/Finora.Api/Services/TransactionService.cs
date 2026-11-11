@@ -12,7 +12,8 @@ namespace Finora.Api.Services;
 public class TransactionService(FinoraDbContext db, CurrentUser currentUser)
 {
     // 금액 상한 1조 원. numeric(18,2)보다 훨씬 작게 잡아 입력 실수(0을 몇 개 더 누름)도 막는다.
-    private const decimal MaxAmount = 1_000_000_000_000m;
+    // internal: 저금 금액(SavingService)도 같은 상한을 쓴다.
+    internal const decimal MaxAmount = 1_000_000_000_000m;
 
     public async Task<ServiceResult<TransactionResponse>> CreateAsync(SaveTransactionRequest request, CancellationToken cancellationToken)
     {

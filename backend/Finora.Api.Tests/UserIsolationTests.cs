@@ -242,6 +242,83 @@ public class UserIsolationTests(PostgresApiFactory factory) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task Savings_OtherUserCannotSeeChangeOrRecordIntoSaving()
+    {
+        var clientA = await RegisterAndLoginAsync();
+        var clientB = await RegisterAndLoginAsync();
+        var savingA = await CreateFreeSavingAsync(clientA);
+        var entryA = await clientA.PostAsJsonAsync($"/api/savings/{savingA}/entries", new { date = "2026-03-01", type = "Deposit", amount = 5000 });
+        var entryIdA = (await entryA.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetInt32();
+        var body = new { name = "B가 바꿈", kind = "Free", startDate = "2026-01-01" };
+        var entryBody = new { date = "2026-03-02", type = "Deposit", amount = 1 };
+
+        // B: 목록에 A의 저금이 없고, A의 저금·기록 Id로 하는 모든 요청은 404
+        var listB = await clientB.GetFromJsonAsync<JsonElement>("/api/savings");
+        Assert.Equal(0, listB.GetArrayLength());
+        var responses = new[]
+        {
+            await clientB.GetAsync($"/api/savings/{savingA}"),
+            await clientB.PutAsJsonAsync($"/api/savings/{savingA}", body),
+            await clientB.PutAsJsonAsync($"/api/savings/{savingA}/status", new { status = "Archived" }),
+            await clientB.PostAsJsonAsync($"/api/savings/{savingA}/close", new { type = "Cancel", date = "2026-03-03" }),
+            await clientB.PostAsJsonAsync($"/api/savings/{savingA}/entries", entryBody),
+            await clientB.PutAsJsonAsync($"/api/savings/{savingA}/entries/{entryIdA}", entryBody),
+            await clientB.DeleteAsync($"/api/savings/{savingA}/entries/{entryIdA}"),
+            await clientB.DeleteAsync($"/api/savings/{savingA}"),
+        };
+        Assert.All(responses, r => Assert.Equal(HttpStatusCode.NotFound, r.StatusCode));
+
+        // A의 저금·기록은 그대로
+        var detailA = await clientA.GetFromJsonAsync<JsonElement>($"/api/savings/{savingA}");
+        Assert.Equal("A의 저금", detailA.GetProperty("saving").GetProperty("name").GetString());
+        Assert.Equal("Active", detailA.GetProperty("saving").GetProperty("status").GetString());
+        Assert.Equal(5000m, detailA.GetProperty("saving").GetProperty("balance").GetDecimal());
+    }
+
+    [Fact]
+    public async Task Savings_CannotTouchOtherUsersEntryThroughOwnSaving()
+    {
+        var clientA = await RegisterAndLoginAsync();
+        var clientB = await RegisterAndLoginAsync();
+        var savingA = await CreateFreeSavingAsync(clientA);
+        var savingB = await CreateFreeSavingAsync(clientB);
+        var entryA = await clientA.PostAsJsonAsync($"/api/savings/{savingA}/entries", new { date = "2026-03-01", type = "Deposit", amount = 5000 });
+        var entryIdA = (await entryA.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetInt32();
+
+        // B가 자기 저금 주소에 A의 기록 Id를 넣는다 → 기록이 B의 것이 아니므로 404
+        var update = await clientB.PutAsJsonAsync($"/api/savings/{savingB}/entries/{entryIdA}", new { date = "2026-03-02", type = "Deposit", amount = 1 });
+        var delete = await clientB.DeleteAsync($"/api/savings/{savingB}/entries/{entryIdA}");
+
+        Assert.Equal(HttpStatusCode.NotFound, update.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, delete.StatusCode);
+    }
+
+    [Fact]
+    public async Task Savings_InterestCannotUseOtherUsersCategory_AndDefaultIsOwnCategory()
+    {
+        var clientA = await RegisterAndLoginAsync();
+        var clientB = await RegisterAndLoginAsync();
+        var interestA = (await clientA.GetFromJsonAsync<List<CategoryDto>>("/api/categories"))!.Single(c => c.Name == "이자").Id;
+        var interestB = (await clientB.GetFromJsonAsync<List<CategoryDto>>("/api/categories"))!.Single(c => c.Name == "이자").Id;
+        var savingB = await CreateFreeSavingAsync(clientB);
+
+        // B가 A의 "이자" 카테고리 Id를 넣는다 → 내 카테고리가 아니므로 거절
+        var withA = await clientB.PostAsJsonAsync($"/api/savings/{savingB}/entries",
+            new { date = "2026-03-31", type = "Interest", amount = 100, categoryId = interestA });
+        Assert.Equal(HttpStatusCode.BadRequest, withA.StatusCode);
+        Assert.True((await withA.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors").TryGetProperty("CategoryId", out _));
+
+        // 카테고리를 비우면 B 자신의 "이자" 카테고리가 쓰이고, 거래도 B의 가계부에만 생긴다
+        var byDefault = await clientB.PostAsJsonAsync($"/api/savings/{savingB}/entries",
+            new { date = "2026-03-31", type = "Interest", amount = 100 });
+        Assert.Equal(interestB, (await byDefault.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("categoryId").GetInt32());
+        var monthlyA = await clientA.GetFromJsonAsync<JsonElement>("/api/transactions/monthly?year=2026&month=3");
+        var monthlyB = await clientB.GetFromJsonAsync<JsonElement>("/api/transactions/monthly?year=2026&month=3");
+        Assert.Equal(0m, monthlyA.GetProperty("income").GetDecimal());
+        Assert.Equal(100m, monthlyB.GetProperty("income").GetDecimal());
+    }
+
+    [Fact]
     public async Task DashboardLayouts_EachUserHasOwnLayout()
     {
         var clientA = await RegisterAndLoginAsync();
@@ -266,6 +343,14 @@ public class UserIsolationTests(PostgresApiFactory factory) : IClassFixture<Post
     }
 
     // ---- 테스트 도우미 ----
+
+    // 자유저금 하나를 만들고 Id를 돌려준다 (가짜 데이터)
+    private static async Task<int> CreateFreeSavingAsync(HttpClient client)
+    {
+        var response = await client.PostAsJsonAsync("/api/savings", new { name = "A의 저금", kind = "Free", startDate = "2026-01-01" });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetInt32();
+    }
 
     private HttpClient CreateClient() => _server.CreateHttpsClient();
 
