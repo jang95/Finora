@@ -234,6 +234,40 @@ public class StatisticsApiTests(PostgresApiFactory factory) : IClassFixture<Post
         return (await response.Content.ReadFromJsonAsync<CategoryDto>())!.Id;
     }
 
+    private record DailyTotalDto(string Date, decimal Income, decimal Expense, decimal CumulativeExpense);
+
+    [Fact]
+    public async Task Daily_FillsEveryDayAndAccumulatesExpense()
+    {
+        var (client, food, salary) = await NewUserAsync();
+        await CreateAsync(client, "2026-10-01", "Expense", food, 1000.50m);
+        await CreateAsync(client, "2026-10-01", "Income", salary, 500);
+        await CreateAsync(client, "2026-10-03", "Expense", food, 2000);
+        await CreateAsync(client, "2026-10-04", "Expense", food, 999999); // 기간 밖
+
+        var days = await DailyAsync(client, "2026-10-01", "2026-10-03");
+
+        Assert.Equal(["2026-10-01", "2026-10-02", "2026-10-03"], days.Select(d => d.Date));
+        Assert.Equal(500m, days[0].Income);
+        Assert.Equal(1000.50m, days[0].Expense);
+        Assert.Equal(0m, days[1].Expense); // 거래 없는 날은 0
+        Assert.Equal(1000.50m, days[1].CumulativeExpense); // 누적은 그대로 이어진다
+        Assert.Equal(3000.50m, days[2].CumulativeExpense);
+    }
+
+    [Fact]
+    public async Task Daily_RejectsMoreThan366Days()
+    {
+        var (client, _, _) = await NewUserAsync();
+
+        var response = await client.GetAsync("/api/statistics/daily?from=2026-01-01&to=2027-01-02");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    private static async Task<List<DailyTotalDto>> DailyAsync(HttpClient client, string from, string to) =>
+        (await client.GetFromJsonAsync<List<DailyTotalDto>>($"/api/statistics/daily?from={from}&to={to}"))!;
+
     private static async Task<List<MonthlyTotalDto>> MonthlyAsync(HttpClient client, string from, string to) =>
         (await client.GetFromJsonAsync<List<MonthlyTotalDto>>($"/api/statistics/monthly?from={from}&to={to}"))!;
 

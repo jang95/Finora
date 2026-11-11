@@ -22,3 +22,7 @@ public record CategoryExpenseResponse(int CategoryId, string CategoryName, decim
 
 // GET /api/statistics/monthly — 기간에 걸친 달마다의 수입/지출 (오래된 달이 앞). Frontend의 MonthlyTotal과 같은 모양.
 public record MonthlyTotalResponse(int Year, int Month, decimal Income, decimal Expense);
+
+// GET /api/statistics/daily — 기간의 날마다 수입/지출 (거래 없는 날은 0). Frontend의 DailyTotal과 같은 모양.
+// CumulativeExpense: 기간 첫날부터 이날까지 지출 누적. 누적도 금액 계산이라 Backend decimal로 한다 (결정 D4) — 화면은 선만 긋는다
+public record DailyTotalResponse(DateOnly Date, decimal Income, decimal Expense, decimal CumulativeExpense);

@@ -712,7 +712,7 @@ GET    /api/statistics/summary?from=2026-10-01&to=2026-10-31   기간 수입·�
    - [x] 드래그 앤 드롭: `@dnd-kit/core` + `@dnd-kit/sortable` 설치, 편집 모드 켜기/끄기, 손잡이로 드래그(터치·키보드), 크기 바꾸기, 숨기기·숨긴 위젯 다시 꺼내기. 배치는 아직 메모리에만
    - [x] Backend: `DashboardLayouts` + Migration, `GET/PUT /api/dashboard-layouts/statistics`, 검증(위젯 id·크기 값, 중복 id), 사용자 분리 테스트
    - [x] 배치 저장 연결: 불러오기(없으면 기본 배치, 모르는 id 버림·새 위젯 뒤에 추가), 바꾸면 debounce 저장, 기본 배치로 되돌리기
-   - [ ] 위젯 ④ 일별 지출 추이 + ⑤ 이전 기간 누적 비교: `GET /api/statistics/daily?from&to` (거래 없는 날 0, 최대 366일). ⑤는 이번 기간·이전 기간 두 번 불러 누적선 2개
+   - [x] 위젯 ④ 일별 지출 추이 + ⑤ 이전 기간 누적 비교: `GET /api/statistics/daily?from&to` (거래 없는 날 0, 최대 366일). ⑤는 이번 기간·이전 기간 두 번 불러 누적선 2개
    - [ ] 위젯 ⑥ 카테고리 비중 도넛(기존 categories API) + ⑦ 상위 카테고리 월별 추이: `GET /api/statistics/categories/monthly?from&to&top=5` (대분류 기준, 나머지는 "기타"). 차트 색 토큰(`--chart-1~5`)에 구분되는 색 지정
    - [ ] 위젯 ⑧ 요일별 평균 지출: `GET /api/statistics/weekdays?from&to` (요일별 합계 ÷ 기간 안 그 요일 날 수, 원 미만 반올림) + ⑨ 큰 지출 TOP 5: `GET /api/statistics/top-expenses?from&to&count=5`
    - [ ] 위젯 ⑩ 저축률 추이 + ⑪ 총자산(가계부 기준) 추이: 월별 API 응답에 `savingRate`(%, (수입−지출)÷수입, 수입 0이면 null)·`totalAssets`(그달 말 누적) 추가

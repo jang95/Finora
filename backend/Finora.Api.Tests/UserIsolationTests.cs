@@ -227,6 +227,21 @@ public class UserIsolationTests(PostgresApiFactory factory) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task Statistics_DailyIncludesOnlyOwnTransactions()
+    {
+        var clientA = await RegisterAndLoginAsync();
+        var clientB = await RegisterAndLoginAsync();
+        var foodA = (await clientA.GetFromJsonAsync<List<CategoryDto>>("/api/categories"))!.Single(c => c.Name == "식비").Id;
+        await clientA.PostAsJsonAsync("/api/transactions", new { date = "2026-10-14", type = "Expense", categoryId = foodA, amount = 10000 });
+
+        var dailyB = await clientB.GetFromJsonAsync<JsonElement>("/api/statistics/daily?from=2026-10-14&to=2026-10-14");
+
+        // B의 10월 14일은 A의 지출이 섞이지 않고 0이어야 한다
+        Assert.Equal(0m, dailyB[0].GetProperty("expense").GetDecimal());
+        Assert.Equal(0m, dailyB[0].GetProperty("cumulativeExpense").GetDecimal());
+    }
+
+    [Fact]
     public async Task DashboardLayouts_EachUserHasOwnLayout()
     {
         var clientA = await RegisterAndLoginAsync();

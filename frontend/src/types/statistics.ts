@@ -8,6 +8,14 @@ export interface MonthlyTotal {
   expense: number
 }
 
+// 하루의 수입/지출 합계와 기간 첫날부터의 지출 누적 (GET /api/statistics/daily). 누적도 Backend가 계산한다 (결정 D4)
+export interface DailyTotal {
+  date: string // 'YYYY-MM-DD'
+  income: number
+  expense: number
+  cumulativeExpense: number
+}
+
 // 한 카테고리의 지출 합계(하위 분류 포함)와 이 단계 지출 중 비율. 한 번에 한 단계씩 받는다 (결정 D23)
 export interface CategoryExpense {
   categoryId: number

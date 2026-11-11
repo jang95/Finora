@@ -48,4 +48,16 @@ public class StatisticsController(StatisticsService statistics) : ControllerBase
         if (result.Errors is not null) return this.ValidationErrors(result.Errors);
         return result.Value!;
     }
+
+    // GET /api/statistics/daily?from=2026-10-01&to=2026-10-31 — 기간의 날마다 수입/지출 + 지출 누적 (최대 366일)
+    [HttpGet("daily")]
+    public async Task<ActionResult<List<DailyTotalResponse>>> GetDailyTotals(
+        [FromQuery, BindRequired] DateOnly from,
+        [FromQuery, BindRequired] DateOnly to,
+        CancellationToken cancellationToken)
+    {
+        var result = await statistics.GetDailyTotalsAsync(from, to, cancellationToken);
+        if (result.Errors is not null) return this.ValidationErrors(result.Errors);
+        return result.Value!;
+    }
 }

@@ -21,6 +21,9 @@ public class StatisticsService(FinoraDbContext db)
     // 월별 합계 API로 한 번에 볼 수 있는 최대 개월 수 (그래프에 너무 많은 막대가 그려지지 않게, 3년)
     private const int MaxMonths = 36;
 
+    // 일별 합계 API의 최대 날 수 (연간 기간 366일까지. 그보다 긴 직접 지정 기간은 점이 너무 많다)
+    private const int MaxDays = 366;
+
     // 기간 요약: from ~ to (양 끝 날짜 포함). 일간이면 from == to, 주간이면 월~일 7일.
     public async Task<ServiceResult<PeriodSummaryResponse>> GetSummaryAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken)
     {
@@ -155,6 +158,44 @@ public class StatisticsService(FinoraDbContext db)
             .ToList();
 
         return ServiceResult<List<MonthlyTotalResponse>>.Ok(months);
+    }
+
+    // 기간의 날마다 수입/지출 + 지출 누적 (위젯 ④ 일별 지출 추이, ⑤ 이전 기간 누적 비교)
+    public async Task<ServiceResult<List<DailyTotalResponse>>> GetDailyTotalsAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken)
+    {
+        var error = ValidatePeriod<List<DailyTotalResponse>>(from, to);
+        if (error is not null) return error;
+
+        // DayNumber: 0001-01-01부터 며칠째인지. 두 날짜의 차 + 1 = 기간의 날 수
+        var dayCount = to.DayNumber - from.DayNumber + 1;
+        if (dayCount > MaxDays)
+            return ServiceResult<List<DailyTotalResponse>>.Invalid("to", $"최대 {MaxDays}일까지 조회할 수 있습니다.");
+
+        // 날짜로 묶어서 합계 (GetMonthlyTotalsAsync와 같은 방식, 키만 날짜)
+        var totals = await db.Transactions
+            .Where(t => t.Date >= from && t.Date <= to)
+            .GroupBy(t => t.Date)
+            .Select(g => new
+            {
+                Date = g.Key,
+                Income = g.Sum(t => t.Type == TransactionType.Income ? t.Amount : 0m),
+                Expense = g.Sum(t => t.Type == TransactionType.Expense ? t.Amount : 0m),
+            })
+            .ToDictionaryAsync(x => x.Date, cancellationToken);
+
+        // 거래가 없는 날도 0으로 채우고, 지출 누적을 앞에서부터 더해 간다
+        var days = new List<DailyTotalResponse>(dayCount);
+        var cumulative = 0m;
+        for (var i = 0; i < dayCount; i++)
+        {
+            var date = from.AddDays(i);
+            totals.TryGetValue(date, out var total);
+            var expense = total?.Expense ?? 0m;
+            cumulative += expense;
+            days.Add(new DailyTotalResponse(date, total?.Income ?? 0m, expense, cumulative));
+        }
+
+        return ServiceResult<List<DailyTotalResponse>>.Ok(days);
     }
 
     // 대시보드: 최근 거래 (기간별 숫자는 GetSummaryAsync)

@@ -1,6 +1,6 @@
 import { apiRequest } from '@/services/api'
 import { transactionsQueryKey } from '@/services/transactionService'
-import type { CategoryExpense, MonthlyTotal, PeriodSummary } from '@/types/statistics'
+import type { CategoryExpense, DailyTotal, MonthlyTotal, PeriodSummary } from '@/types/statistics'
 
 // 통계 API (Phase 6). 합계·비율은 Backend가 decimal로 계산해서 내려준다 (결정 D4). 화면은 그리기만 한다.
 // 기간은 모두 from ~ to ('YYYY-MM-DD', 양 끝 포함)로 보낸다. (utils/period.ts의 Period)
@@ -29,4 +29,11 @@ export async function getCategoryExpenses(from: string, to: string, parentId: nu
 // 기간에 걸친 달마다의 수입/지출 (오래된 달이 앞, 거래 없는 달은 0, 최대 36개월)
 export async function getMonthlyTotals(from: string, to: string): Promise<MonthlyTotal[]> {
   return apiRequest<MonthlyTotal[]>(`/api/statistics/monthly?from=${from}&to=${to}`)
+}
+
+export const dailyTotalsQueryKey = (from: string, to: string) => [...transactionsQueryKey, 'dailyTotals', from, to] as const
+
+// 기간의 날마다 수입/지출 + 지출 누적 (거래 없는 날은 0, 최대 366일)
+export async function getDailyTotals(from: string, to: string): Promise<DailyTotal[]> {
+  return apiRequest<DailyTotal[]>(`/api/statistics/daily?from=${from}&to=${to}`)
 }
