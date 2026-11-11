@@ -19,3 +19,17 @@ export interface WidgetLayoutItem {
   size: WidgetSize
   hidden: boolean
 }
+
+// 서버에 저장된 배치 한 줄 (Backend WidgetLayoutItemDto). id가 string인 이유: 옛날에 저장한 뒤 없어진 위젯 id가
+// 들어 있을 수 있어서, 화면에서 쓰기 전에 아는 id만 남긴다 (utils/dashboardLayout.ts mergeLayout, 결정 D27)
+export interface StoredLayoutItem {
+  id: string
+  size: WidgetSize
+  hidden: boolean
+}
+
+// GET/PUT /api/dashboard-layouts/{page} 응답 (Backend DashboardLayoutResponse). 저장한 적이 없으면 items는 []
+export interface DashboardLayoutResponse {
+  page: string
+  items: StoredLayoutItem[]
+}
