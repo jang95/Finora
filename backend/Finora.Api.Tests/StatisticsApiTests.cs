@@ -341,10 +341,10 @@ public class StatisticsApiTests(PostgresApiFactory factory) : IClassFixture<Post
         await CreateAsync(client, "2026-10-07", "Expense", food, 500); // 수 (다른 수요일은 0원이라 평균 250)
         await CreateAsync(client, "2026-10-06", "Income", salary, 99999); // 수입은 제외
 
-        var weekdays = await client.GetFromJsonAsync<List<WeekdayDto>>("/api/statistics/weekdays?from=2026-10-05&to=2026-10-18");
+        var weekdays = (await client.GetFromJsonAsync<List<WeekdayDto>>("/api/statistics/weekdays?from=2026-10-05&to=2026-10-18"))!;
 
-        Assert.Equal(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], weekdays!.Select(w => w.Weekday));
-        Assert.All(weekdays!, w => Assert.Equal(2, w.DayCount));
+        Assert.Equal(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], weekdays.Select(w => w.Weekday));
+        Assert.All(weekdays, w => Assert.Equal(2, w.DayCount));
         Assert.Equal(3001m, weekdays[0].Total);
         Assert.Equal(1501m, weekdays[0].Average);
         Assert.Equal(250m, weekdays[2].Average);
