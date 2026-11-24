@@ -1,7 +1,7 @@
 # Finora 개인 금융관리 프로그램 개발 계획서
 
 > 기준일: 2026-11-11  
-> 현재 상태: Phase 7.5 진행 중 (사용 피드백 반영). 1번 카테고리 3단계 완료, 2번 저금은 Backend 테이블까지 만들고 잠시 멈춤, 3번 통계 대시보드 진행 중
+> 현재 상태: Phase 7.5 진행 중 (사용 피드백 반영). 1번 카테고리 3단계 완료, 3번 통계 대시보드 완료, 2번 저금 이어서 진행 중 (Backend API·계산 완료, 다음은 메뉴·화면)
 
 ### 변경 이력
 
@@ -696,7 +696,7 @@ GET    /api/statistics/summary?from=2026-10-01&to=2026-10-31   기간 수입·�
    - [x] 통계: 대분류 합계(하위 포함) → 눌러서 펼치기 (Backend decimal)
    - [x] 운영 배포·확인 (2026-10-30, Migration AddCategoryParent)
    - ✅ 2026-10-30 완료
-2. 저금 — 자유저금 / 적금 / 예금 (결정 D24, D25) — **2026-11-11 잠시 멈춤**: ③ 통계 대시보드를 먼저 하고 Backend API부터 이어서 한다
+2. 저금 — 자유저금 / 적금 / 예금 (결정 D24, D25) — 2026-11-11 ③ 통계 대시보드를 먼저 하려고 잠시 멈췄다가 2026-11-24 다시 시작
    - [x] 계획서 반영 (D24, D25, 8장 Savings·SavingEntries, 메뉴 구조)
    - [x] Backend: `Savings`·`SavingEntries` + Migration, "이자" 기본 수입 카테고리(기존 사용자 포함)
    - [x] Backend API: 저금 등록·수정·삭제·상태 변경, 이미 가입한 상품의 기존 금액(Opening 1건), 기록 입력(종류별 규칙), 만기 수령·중도해지, 이자 → 가계부 수입 연결, 사용자 분리 테스트
@@ -716,7 +716,8 @@ GET    /api/statistics/summary?from=2026-10-01&to=2026-10-31   기간 수입·�
    - [x] 위젯 ⑥ 카테고리 비중 도넛(기존 categories API) + ⑦ 상위 카테고리 월별 추이: `GET /api/statistics/categories/monthly?from&to&top=5` (대분류 기준, 나머지는 "기타"). 차트 색 토큰(`--chart-1~5`)에 구분되는 색 지정
    - [x] 위젯 ⑧ 요일별 평균 지출: `GET /api/statistics/weekdays?from&to` (요일별 합계 ÷ 기간 안 그 요일 날 수, 원 미만 반올림) + ⑨ 큰 지출 TOP 5: `GET /api/statistics/top-expenses?from&to&count=5`
    - [x] 위젯 ⑩ 저축률 추이 + ⑪ 총자산(가계부 기준) 추이: 월별 API 응답에 `savingRate`(%, (수입−지출)÷수입, 수입 0이면 null)·`totalAssets`(그달 말 누적) 추가
-   - [ ] 전체 테스트(dotnet test, lint, build, 브라우저: PC·폰 드래그) + 운영 배포·확인 (Migration AddDashboardLayouts)
+   - [x] 전체 테스트(dotnet test, lint, build, 브라우저: PC·폰 드래그) + 운영 배포·확인 (2026-11-25, Migration AddDashboardLayouts)
+   - ✅ 2026-11-25 완료
 
 ---
 
@@ -869,7 +870,7 @@ AI 분석 (Backend에서 호출)
 [완료] Phase 5   가계부 완성 — 카테고리 추가·이름 변경·삭제(사용 중이면 삭제 불가), 거래 등록·수정·삭제(수입/지출, 카테고리 소유권 확인), 월별·연간 조회(Backend decimal 집계), TanStack Query, 계좌·이체 숨김·자산 "준비 중"(결정 D16), 로그인 만료 시 로그인 화면 이동. 계좌·이체는 Phase 8
 [완료] Phase 6   대시보드 / 통계 / 설정 — 기간 선택(일·주·월·연·직접 지정, PeriodPicker), 기간 요약 API(수입·지출·합계 + 기간 말 누적 총자산), 대시보드(기간 카드·계좌 기준 "준비 중"·최근 거래), 통계(카테고리별 지출 비중·월별 그래프, Backend decimal), 비밀번호 변경(다른 기기 로그아웃), 한국 시간 기준(결정 D18)
 [완료] Phase 7   첫 배포 — React 빌드 제공, Forwarded Headers, 운영 Dockerfile·compose, 집 노트북(Linux Mint) + Tailscale Funnel HTTPS 공개, DB 백업(rclone crypt → Google Drive, 매일 자동) + 클라우드 백업 복원 테스트, Android 외부 접속 확인
-[진행] Phase 7.5 사용 피드백 반영 (UI/UX 개선) — ① 카테고리 3단계 계층 완료 (결정 D22, D23), ② 저금(자유저금·적금·예금) Backend 테이블까지 만들고 잠시 멈춤 (결정 D24, D25), ③ 통계 대시보드(위젯 11개·드래그 배치·사용자별 저장) 진행 중 (결정 D26, D27)
+[진행] Phase 7.5 사용 피드백 반영 (UI/UX 개선) — ① 카테고리 3단계 계층 완료 (결정 D22, D23), ② 저금(자유저금·적금·예금) 진행 중 — Backend API·계산 완료 (결정 D24, D25), ③ 통계 대시보드(위젯 11개·드래그 배치·사용자별 저장) 완료 (결정 D26, D27)
 [ ]    Phase 8   자산(계좌) 관리 (계좌·이체·계좌 기준 총자산, 월말 스냅샷)
 [ ]    Phase 9   PWA / Android
 [ ]    Phase 10  투자
