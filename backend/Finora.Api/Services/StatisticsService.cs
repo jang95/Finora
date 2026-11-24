@@ -402,7 +402,8 @@ public class StatisticsService(FinoraDbContext db)
     // 그래서 요약·카테고리·월별 API가 이 검사 하나를 같이 쓴다.
     // 오류 키는 주소의 이름(from/to) 그대로. ModelState는 대소문자를 구분하지 않아서,
     // "To"로 넣어도 이미 있는 "to" 항목(주소 값을 읽을 때 생김)에 합쳐진다.
-    private static ServiceResult<T>? ValidatePeriod<T>(DateOnly from, DateOnly to)
+    // internal: 같은 프로젝트(Finora.Api) 안에서는 다른 클래스도 쓸 수 있다 (SavingService.GetSummaryAsync)
+    internal static ServiceResult<T>? ValidatePeriod<T>(DateOnly from, DateOnly to)
     {
         if (from < MinDate || from > MaxDate)
             return ServiceResult<T>.Invalid("from", "조회할 수 없는 날짜입니다.");

@@ -1,6 +1,7 @@
 using Finora.Api.DTOs;
 using Finora.Api.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace Finora.Api.Controllers;
 
@@ -14,6 +15,19 @@ public class SavingsController(SavingService savings) : ControllerBase
     [HttpGet]
     public Task<List<SavingResponse>> GetAll(CancellationToken cancellationToken) =>
         savings.GetAllAsync(cancellationToken);
+
+    // GET /api/savings/summary?from=2026-11-01&to=2026-11-30 — 기간별 저금 합계 + 전체 현재 금액 + 예금자보호 안내
+    // "summary"는 {id:int}와 겹치지 않는다 (int 제약 때문에 글자는 {id}로 읽히지 않는다)
+    [HttpGet("summary")]
+    public async Task<ActionResult<SavingsSummaryResponse>> GetSummary(
+        [FromQuery, BindRequired] DateOnly from,
+        [FromQuery, BindRequired] DateOnly to,
+        CancellationToken cancellationToken)
+    {
+        var result = await savings.GetSummaryAsync(from, to, cancellationToken);
+        if (result.Errors is not null) return this.ValidationErrors(result.Errors);
+        return result.Value!;
+    }
 
     // GET /api/savings/{id} — 저금 + 기록 목록. 내 저금이 아니면 404
     [HttpGet("{id:int}")]

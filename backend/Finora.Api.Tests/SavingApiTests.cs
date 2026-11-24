@@ -422,6 +422,68 @@ public class SavingApiTests(PostgresApiFactory factory) : IClassFixture<Postgres
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
+    // ---- 기간별 저금 합계 ----
+
+    private record BankDto(string BankName, decimal Balance);
+
+    private record SummaryDto(
+        decimal Deposited, decimal Withdrawn, decimal Interest, decimal NetSaved, decimal TotalBalance, List<BankDto> ProtectionWarnings);
+
+    [Fact]
+    public async Task Summary_ExcludesOpeningAndCountsInterest()
+    {
+        var client = await _server.RegisterAndLoginAsync();
+        var saving = await CreateSavingAsync(client, new { name = "여행 자금", kind = "Free", startDate = "2026-01-01", openingAmount = 200000 });
+        await AddEntryAsync(client, saving.Id, new { date = "2026-03-01", type = "Deposit", amount = 50000 }, HttpStatusCode.Created);
+        await AddEntryAsync(client, saving.Id, new { date = "2026-03-05", type = "Withdrawal", amount = 20000 }, HttpStatusCode.Created);
+        await AddEntryAsync(client, saving.Id, new { date = "2026-03-31", type = "Interest", amount = 1000, recordAsIncome = false }, HttpStatusCode.Created);
+        // 기간 밖 (4월)
+        await AddEntryAsync(client, saving.Id, new { date = "2026-04-01", type = "Deposit", amount = 9999 }, HttpStatusCode.Created);
+
+        var summary = (await client.GetFromJsonAsync<SummaryDto>("/api/savings/summary?from=2026-03-01&to=2026-03-31"))!;
+
+        // 기존 금액 20만 원은 3월 저금이 아니다 (결정 D24). 3월 저금 = 50,000 + 1,000 − 20,000
+        Assert.Equal(50000m, summary.Deposited);
+        Assert.Equal(20000m, summary.Withdrawn);
+        Assert.Equal(1000m, summary.Interest);
+        Assert.Equal(31000m, summary.NetSaved);
+        // 3월 31일까지의 현재 금액은 기존 금액 포함, 4월 입금 제외
+        Assert.Equal(231000m, summary.TotalBalance);
+        Assert.Empty(summary.ProtectionWarnings);
+    }
+
+    [Fact]
+    public async Task Summary_WarnsWhenBankTotalExceedsProtectionLimit()
+    {
+        var client = await _server.RegisterAndLoginAsync();
+        // 같은 금융기관(가짜 이름)에 6천만 원 예금 2개 = 1억 2천만 원 → 한도 1억 원 초과
+        foreach (var name in new[] { "예금 1", "예금 2" })
+        {
+            await CreateSavingAsync(client, new
+            {
+                name, kind = "Deposit", bankName = "테스트은행", startDate = "2026-01-01", maturityDate = "2027-01-01",
+                interestRate = 3, openingAmount = 60000000,
+            });
+        }
+        await CreateSavingAsync(client, new { name = "비상금", kind = "Free", bankName = "가짜은행", startDate = "2026-01-01", openingAmount = 500000 });
+
+        var summary = (await client.GetFromJsonAsync<SummaryDto>("/api/savings/summary?from=2026-01-01&to=2026-12-31"))!;
+
+        var warning = Assert.Single(summary.ProtectionWarnings);
+        Assert.Equal("테스트은행", warning.BankName);
+        Assert.Equal(120000000m, warning.Balance);
+    }
+
+    [Fact]
+    public async Task Summary_RejectsReversedPeriod()
+    {
+        var client = await _server.RegisterAndLoginAsync();
+
+        var response = await client.GetAsync("/api/savings/summary?from=2026-03-31&to=2026-03-01");
+
+        await AssertFieldErrorAsync(response, "to");
+    }
+
     // ---- 테스트 도우미 ----
 
     private static async Task<SavingDto> CreateSavingAsync(HttpClient client, object body)

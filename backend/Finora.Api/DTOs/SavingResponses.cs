@@ -37,3 +37,20 @@ public record SavingEntryResponse(
 
 // GET /api/savings/{id} — 저금 + 기록 목록(최신 날짜순)
 public record SavingDetailResponse(SavingResponse Saving, List<SavingEntryResponse> Entries);
+
+// GET /api/savings/summary?from&to — 기간별 저금 합계 (가계부 요약·대시보드 저금 카드, 결정 D24)
+// - Deposited / Withdrawn / Interest: 기간 안의 입금·출금·이자 합계. 기존 금액(Opening)은 뺀다 (지난 기간에 모은 돈)
+// - NetSaved: 이번 기간 저금 = 입금 + 이자 − 출금. "저금 후 남은 돈" = 가계부 합계 − NetSaved
+// - TotalBalance: to 날짜까지의 모든 저금 현재 금액 합계 (기존 금액 포함)
+// - ProtectionWarnings: 금융기관별 현재 금액 합계가 예금자보호 한도(1억 원)를 넘는 곳 (금융기관 이름을 적은 저금만)
+public record SavingsSummaryResponse(
+    DateOnly From,
+    DateOnly To,
+    decimal Deposited,
+    decimal Withdrawn,
+    decimal Interest,
+    decimal NetSaved,
+    decimal TotalBalance,
+    List<BankTotalResponse> ProtectionWarnings);
+
+public record BankTotalResponse(string BankName, decimal Balance);

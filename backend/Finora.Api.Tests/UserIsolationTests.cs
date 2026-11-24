@@ -356,6 +356,24 @@ public class UserIsolationTests(PostgresApiFactory factory) : IClassFixture<Post
         Assert.Equal("summary", layoutA.GetProperty("items")[0].GetProperty("id").GetString());
     }
 
+    [Fact]
+    public async Task Savings_SummaryCountsOnlyOwnEntries()
+    {
+        var clientA = await RegisterAndLoginAsync();
+        var clientB = await RegisterAndLoginAsync();
+        var savingA = await CreateFreeSavingAsync(clientA);
+        var deposit = await clientA.PostAsJsonAsync($"/api/savings/{savingA}/entries", new { date = "2026-03-01", type = "Deposit", amount = 70000 });
+        Assert.Equal(HttpStatusCode.Created, deposit.StatusCode);
+
+        // B의 기간 합계에는 A의 입금이 섞이지 않는다 (Global Query Filter)
+        var summaryB = await clientB.GetFromJsonAsync<JsonElement>("/api/savings/summary?from=2026-01-01&to=2026-12-31");
+        Assert.Equal(0m, summaryB.GetProperty("netSaved").GetDecimal());
+        Assert.Equal(0m, summaryB.GetProperty("totalBalance").GetDecimal());
+
+        var summaryA = await clientA.GetFromJsonAsync<JsonElement>("/api/savings/summary?from=2026-01-01&to=2026-12-31");
+        Assert.Equal(70000m, summaryA.GetProperty("netSaved").GetDecimal());
+    }
+
     // ---- 테스트 도우미 ----
 
     // 자유저금 하나를 만들고 Id를 돌려준다 (가짜 데이터)

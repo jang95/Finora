@@ -20,6 +20,8 @@ public class SavingService(FinoraDbContext db, CurrentUser currentUser, TimeProv
     // 이자를 가계부 수입으로 기록할 때 기본으로 쓰는 카테고리 (DefaultCategories, Migration AddSavings가 만든 수입 대분류)
     private const string InterestCategoryName = "이자";
     private const decimal DefaultTaxRate = 15.4m;
+    // 예금자보호 한도: 금융기관 한 곳당 원금 + 이자 합쳐 1억 원 (2025년 9월부터)
+    private const decimal DepositProtectionLimit = 100_000_000m;
     private const string OpeningMessage = "기존 금액은 저금 등록·수정에서 입력하세요.";
     private const string DepositOnceMessage = "예금은 원금을 한 번만 넣을 수 있습니다.";
 
@@ -337,6 +339,47 @@ public class SavingService(FinoraDbContext db, CurrentUser currentUser, TimeProv
         saving.UpdatedAt = now;
         await db.SaveChangesAsync(cancellationToken);
         return await GetAsync(id, cancellationToken);
+    }
+
+    // ---- 기간 합계 ----
+
+    // 기간별 저금 합계 + 전체 현재 금액 + 예금자보호 안내 (SavingsSummaryResponse 설명 참고)
+    //
+    // 이자를 "이번 기간 저금"에 더하는 이유: 받은 이자는 가계부 수입으로도 기록돼 합계(수입 − 지출)에 이미 들어 있지만,
+    // 실제 돈은 지갑이 아니라 저금 안에 있다. 그래서 "저금 후 남은 돈 = 합계 − 저금"에서 이자만큼 빼야 맞다.
+    // 또 만기 수령·해지의 출금에는 이자도 섞여 나오므로, 이자를 넣을 때 더해 둬야 꺼낼 때와 짝이 맞는다.
+    public async Task<ServiceResult<SavingsSummaryResponse>> GetSummaryAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken)
+    {
+        if (StatisticsService.ValidatePeriod<SavingsSummaryResponse>(from, to) is { } error) return error;
+
+        // 기록 종류별 기간 합계를 SQL 한 번으로: GROUP BY "Type" → 종류마다 SUM
+        var sums = await db.SavingEntries
+            .Where(e => e.Date >= from && e.Date <= to && e.Type != SavingEntryType.Opening)
+            .GroupBy(e => e.Type)
+            .Select(g => new { Type = g.Key, Amount = g.Sum(e => e.Amount) })
+            .ToDictionaryAsync(x => x.Type, x => x.Amount, cancellationToken);
+        // GetValueOrDefault: 그 종류 기록이 없으면 사전에 키가 없다 → 0
+        var deposited = sums.GetValueOrDefault(SavingEntryType.Deposit);
+        var withdrawn = sums.GetValueOrDefault(SavingEntryType.Withdrawal);
+        var interest = sums.GetValueOrDefault(SavingEntryType.Interest);
+
+        var totalBalance = await db.SavingEntries
+            .Where(e => e.Date <= to)
+            .SumAsync(e => e.Type == SavingEntryType.Withdrawal ? -e.Amount : e.Amount, cancellationToken);
+
+        // 금융기관별 현재 금액 (오늘 기준, 기간과 무관). 탐색 속성 e.Saving.BankName → SQL JOIN
+        var banks = await db.SavingEntries
+            .Where(e => e.Saving.BankName != null)
+            .GroupBy(e => e.Saving.BankName!)
+            .Select(g => new BankTotalResponse(g.Key, g.Sum(e => e.Type == SavingEntryType.Withdrawal ? -e.Amount : e.Amount)))
+            .ToListAsync(cancellationToken);
+        var warnings = banks
+            .Where(b => b.Balance > DepositProtectionLimit)
+            .OrderByDescending(b => b.Balance)
+            .ToList();
+
+        return ServiceResult<SavingsSummaryResponse>.Ok(new SavingsSummaryResponse(
+            from, to, deposited, withdrawn, interest, deposited + interest - withdrawn, totalBalance, warnings));
     }
 
     // ---- 내부 도우미 ----
