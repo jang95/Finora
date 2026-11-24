@@ -15,7 +15,7 @@ namespace Finora.Api.Services;
 // - 적금: 입금·이자만. 출금 대신 만기 수령·중도해지(CloseAsync)
 // - 예금: 원금 1번(기존 금액 또는 입금 한 건) + 이자. 출금 대신 만기 수령·중도해지
 // 입금·출금은 가계부 거래가 아니다. 이자만 가계부 수입으로 함께 기록하고 연결한다(SavingEntry.TransactionId).
-public class SavingService(FinoraDbContext db, CurrentUser currentUser)
+public class SavingService(FinoraDbContext db, CurrentUser currentUser, TimeProvider time)
 {
     // 이자를 가계부 수입으로 기록할 때 기본으로 쓰는 카테고리 (DefaultCategories, Migration AddSavings가 만든 수입 대분류)
     private const string InterestCategoryName = "이자";
@@ -28,7 +28,7 @@ public class SavingService(FinoraDbContext db, CurrentUser currentUser)
     // 목록: 진행 중 → 완료 → 보관 순, 같은 상태 안에서는 최근 등록이 위
     public async Task<List<SavingResponse>> GetAllAsync(CancellationToken cancellationToken)
     {
-        var savings = await ToResponses(db.Savings).ToListAsync(cancellationToken);
+        var savings = await LoadResponsesAsync(db.Savings, cancellationToken);
         // 상태 순서(enum 선언 순서 Active, Completed, Archived)로 정렬. DB에는 문자열로 저장돼 있어서
         // DB에서 정렬하면 알파벳순(Active, Archived, Completed)이 된다. 저금은 많아야 수십 개라 C#에서 정렬한다.
         return savings.OrderBy(s => s.Status).ThenByDescending(s => s.Id).ToList();
@@ -37,7 +37,7 @@ public class SavingService(FinoraDbContext db, CurrentUser currentUser)
     // 상세: 저금 + 기록 목록
     public async Task<ServiceResult<SavingDetailResponse>> GetAsync(int id, CancellationToken cancellationToken)
     {
-        var saving = await ToResponses(db.Savings.Where(s => s.Id == id)).SingleOrDefaultAsync(cancellationToken);
+        var saving = (await LoadResponsesAsync(db.Savings.Where(s => s.Id == id), cancellationToken)).SingleOrDefault();
         if (saving is null) return ServiceResult<SavingDetailResponse>.NotFound();
 
         // 정렬은 DTO로 바꾸기(Select) 전에 한다. 생성자로 만든 record의 속성은 EF Core가 SQL 컬럼으로 되돌려 읽지 못한다.
@@ -343,16 +343,34 @@ public class SavingService(FinoraDbContext db, CurrentUser currentUser)
 
     private string UserId => currentUser.Id ?? throw new InvalidOperationException("로그인한 사용자가 없습니다.");
 
-    // 저금 → 응답 DTO. 현재 금액(Balance)은 그 저금의 기록 합계를 SQL 하위 쿼리(SELECT SUM ...)로 함께 계산한다.
-    // 출금만 빼고 나머지(기존 금액·입금·이자)는 더한다. 기록이 없으면 SUM이 NULL이지만 EF Core가 0으로 바꿔 준다(COALESCE).
-    // db.SavingEntries에도 Global Query Filter가 붙으므로 하위 쿼리도 내 기록만 더한다.
-    private IQueryable<SavingResponse> ToResponses(IQueryable<Saving> savings) =>
-        savings.Select(s => new SavingResponse(
-            s.Id, s.Name, s.Kind, s.BankName, s.TargetAmount, s.StartDate, s.MaturityDate, s.InterestRate,
-            s.InterestMethod, s.TaxRate, s.PaymentType, s.PlannedAmount, s.Status, s.Memo,
-            db.SavingEntries
-                .Where(e => e.SavingId == s.Id)
-                .Sum(e => e.Type == SavingEntryType.Withdrawal ? -e.Amount : e.Amount)));
+    // 저금 → 응답 DTO (현재 금액 + 계산 결과). 예상 이자·계획 대비는 기록 전체와 "오늘"이 있어야 계산할 수 있어서
+    // SQL 한 번으로 만들지 않고, 저금과 그 기록을 불러온 다음 C#에서 SavingCalculator로 계산한다.
+    // 조회는 두 번(저금 목록 1번 + 그 저금들의 기록 1번)이다. 저금마다 기록을 따로 조회하면 저금 수만큼 쿼리가 나가므로(N+1 문제) 한 번에 가져온다.
+    // db.SavingEntries에도 Global Query Filter가 붙으므로 내 기록만 온다.
+    private async Task<List<SavingResponse>> LoadResponsesAsync(IQueryable<Saving> query, CancellationToken cancellationToken)
+    {
+        // AsNoTracking: 읽기만 할 때 EF Core가 변경 추적(나중에 SaveChanges로 UPDATE할 준비)을 하지 않아 가볍다
+        var savings = await query.AsNoTracking().ToListAsync(cancellationToken);
+        var ids = savings.Select(s => s.Id).ToList();
+        // ids.Contains(...) → SQL의 WHERE "SavingId" IN (…)
+        var entries = await db.SavingEntries.AsNoTracking()
+            .Where(e => ids.Contains(e.SavingId))
+            .ToListAsync(cancellationToken);
+        // ToLookup: SavingId별로 묶은 사전. lookup[id]는 기록이 없으면 빈 목록을 돌려준다 (Dictionary와 달리 예외가 없다)
+        var bySaving = entries.ToLookup(e => e.SavingId);
+        var today = KoreaTime.Today(time);
+
+        return savings.Select(s =>
+        {
+            var list = bySaving[s.Id].ToList();
+            // 현재 금액: 출금만 빼고 나머지(기존 금액·입금·이자)는 더한다
+            var balance = list.Sum(e => e.Type == SavingEntryType.Withdrawal ? -e.Amount : e.Amount);
+            return new SavingResponse(
+                s.Id, s.Name, s.Kind, s.BankName, s.TargetAmount, s.StartDate, s.MaturityDate, s.InterestRate,
+                s.InterestMethod, s.TaxRate, s.PaymentType, s.PlannedAmount, s.Status, s.Memo,
+                balance, SavingCalculator.Calculate(s, list, today));
+        }).ToList();
+    }
 
     // 기록 → 응답 DTO. 연결된 거래가 있으면 그 카테고리 Id·이름을 JOIN으로 가져온다 (없으면 null)
     private static IQueryable<SavingEntryResponse> ToEntryResponses(IQueryable<SavingEntry> entries) =>
@@ -361,7 +379,7 @@ public class SavingService(FinoraDbContext db, CurrentUser currentUser)
             e.Transaction!.CategoryId, e.Transaction.Category!.Name));
 
     private async Task<SavingResponse> GetResponseAsync(int id, CancellationToken cancellationToken) =>
-        await ToResponses(db.Savings.Where(s => s.Id == id)).SingleAsync(cancellationToken);
+        (await LoadResponsesAsync(db.Savings.Where(s => s.Id == id), cancellationToken)).Single();
 
     private async Task<SavingEntryResponse> GetEntryResponseAsync(int id, CancellationToken cancellationToken) =>
         await ToEntryResponses(db.SavingEntries.Where(e => e.Id == id)).SingleAsync(cancellationToken);

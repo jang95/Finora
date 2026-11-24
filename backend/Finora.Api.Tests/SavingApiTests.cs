@@ -17,7 +17,11 @@ public class SavingApiTests(PostgresApiFactory factory) : IClassFixture<Postgres
 
     private record SavingDto(
         int Id, string Name, string Kind, decimal? TargetAmount, string StartDate, string? MaturityDate, decimal? InterestRate,
-        string InterestMethod, decimal TaxRate, string? PaymentType, decimal? PlannedAmount, string Status, decimal Balance);
+        string InterestMethod, decimal TaxRate, string? PaymentType, decimal? PlannedAmount, string Status, decimal Balance, CalculationDto? Calculation = null);
+
+    private record CalculationDto(
+        decimal PaidPrincipal, decimal? ExpectedPrincipal, decimal? ExpectedInterest, decimal? ExpectedTax, decimal? ExpectedReceive,
+        decimal? AmountProgress, decimal? TimeProgress, decimal? MonthlyRequired, decimal? PlannedToDate, decimal? PlanDifference);
 
     private record EntryDto(int Id, string Date, string Type, decimal Amount, string? Memo, int? TransactionId, int? CategoryId, string? CategoryName);
 
@@ -69,6 +73,24 @@ public class SavingApiTests(PostgresApiFactory factory) : IClassFixture<Postgres
         var opening = Assert.Single(detail.Entries);
         Assert.Equal("Opening", opening.Type);
         Assert.Equal("2026-01-10", opening.Date);
+    }
+
+    [Fact]
+    public async Task Create_ReturnsCalculation()
+    {
+        var client = await _server.RegisterAndLoginAsync();
+
+        // 월 30만 원 × 12회, 연 4.5% 단리 → 30만 × 0.045/12 × 78 = 87,750, 세금 13,513 (버림), 수령 3,674,237
+        // (계산 자체는 SavingCalculatorTests에서 자세히 확인한다. 여기서는 응답에 잘 실려 오는지만)
+        var saving = await CreateSavingAsync(client, Installment(openingAmount: 600000));
+
+        var calculation = Assert.IsType<CalculationDto>(saving.Calculation);
+        Assert.Equal(600000m, calculation.PaidPrincipal);
+        Assert.Equal(3600000m, calculation.ExpectedPrincipal);
+        Assert.Equal(87750m, calculation.ExpectedInterest);
+        Assert.Equal(13513m, calculation.ExpectedTax);
+        Assert.Equal(3674237m, calculation.ExpectedReceive);
+        Assert.Equal(16.7m, calculation.AmountProgress);
     }
 
     [Fact]

@@ -1,9 +1,11 @@
 using Finora.Api.Data.Entities;
+using Finora.Api.Services;
 
 namespace Finora.Api.DTOs;
 
 // 저금 하나 응답 (목록·등록·수정). 값이 null인 속성은 JSON에서 빠진다 (Program.cs 설정)
 // Balance: 현재 금액 = 기존 금액 + 입금 + 이자 − 출금. 저장된 값이 아니라 기록에서 그때그때 계산한다 (Saving 설명 참고)
+// Calculation: 예상 이자·세후 수령액·진행률·계획 대비 (SavingCalculation 설명 참고). JSON에서는 "calculation": { … } 안쪽 객체가 된다
 public record SavingResponse(
     int Id,
     string Name,
@@ -19,7 +21,8 @@ public record SavingResponse(
     decimal? PlannedAmount,
     SavingStatus Status,
     string? Memo,
-    decimal Balance);
+    decimal Balance,
+    SavingCalculation Calculation);
 
 // 저금 기록 한 건. 이자를 가계부 수입으로도 기록했으면 그 거래의 Id·카테고리가 함께 온다
 public record SavingEntryResponse(
